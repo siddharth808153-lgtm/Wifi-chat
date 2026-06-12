@@ -9,7 +9,7 @@ import { QRCodeSVG } from 'qrcode.react';
 
 // Predefined 16 Famous Anime Characters with custom theme colors
 const ANIME_CHARACTERS = [
-  { id: 'goku', name: 'Goku', series: 'Dragon Ball Z', image: '/avatars/goku.png', color: '#ff7b00' },
+  { id: 'goku', name: 'Goku', series: 'Dragon Ball Z', image: '/avatars/goku.png?v=1', color: '#ff7b00' },
   { id: 'naruto', name: 'Naruto', series: 'Naruto', image: '/avatars/naruto.png', color: '#f1c40f' },
   { id: 'luffy', name: 'Luffy', series: 'One Piece', image: '/avatars/luffy.png', color: '#e74c3c' },
   { id: 'gojo', name: 'Gojo Satoru', series: 'Jujutsu Kaisen', image: '/avatars/gojo.png', color: '#9b59b6' },
