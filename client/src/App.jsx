@@ -67,6 +67,102 @@ const playReceiveSound = () => {
   }
 };
 
+// A smart component that loads the avatar image and removes any white/light background on the fly (flood-fill algorithm)
+const TransparentAvatar = ({ src, alt, className }) => {
+  const [processedSrc, setProcessedSrc] = React.useState(src);
+
+  React.useEffect(() => {
+    if (!src) return;
+    
+    // Only process PNG images that might have a white background (like our local avatars)
+    if (!src.startsWith('/avatars/')) {
+      setProcessedSrc(src);
+      return;
+    }
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+
+      try {
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imgData.data;
+        const width = canvas.width;
+        const height = canvas.height;
+
+        const visited = new Uint8Array(width * height);
+        const queue = [];
+
+        const getPixelIndex = (x, y) => (y * width + x) * 4;
+
+        // Matches pure white to very light gray/shadows
+        const isWhite = (r, g, b) => r > 230 && g > 230 && b > 230;
+
+        // Push 4 corners to start the flood fill from
+        const corners = [
+          [0, 0],
+          [width - 1, 0],
+          [0, height - 1],
+          [width - 1, height - 1]
+        ];
+
+        for (const [x, y] of corners) {
+          const idx = y * width + x;
+          const pIdx = getPixelIndex(x, y);
+          if (isWhite(data[pIdx], data[pIdx + 1], data[pIdx + 2])) {
+            queue.push([x, y]);
+            visited[idx] = 1;
+          }
+        }
+
+        // Flood fill from corners
+        while (queue.length > 0) {
+          const [x, y] = queue.shift();
+          const pIdx = getPixelIndex(x, y);
+
+          // Make the background transparent
+          data[pIdx + 3] = 0;
+
+          // 4-connected neighbors
+          const neighbors = [
+            [x + 1, y],
+            [x - 1, y],
+            [x, y + 1],
+            [x, y - 1]
+          ];
+
+          for (const [nx, ny] of neighbors) {
+            if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+              const nIdx = ny * width + nx;
+              if (!visited[nIdx]) {
+                const npIdx = getPixelIndex(nx, ny);
+                if (isWhite(data[npIdx], data[npIdx + 1], data[npIdx + 2])) {
+                  queue.push([nx, ny]);
+                  visited[nIdx] = 1;
+                }
+              }
+            }
+          }
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+        setProcessedSrc(canvas.toDataURL('image/png'));
+      } catch (e) {
+        console.error('Failed to process transparent background', e);
+        setProcessedSrc(src);
+      }
+    };
+    img.src = src;
+  }, [src]);
+
+  return <img src={processedSrc} alt={alt} className={className} />;
+};
+
 function App() {
   // Lobby States
   const [joined, setJoined] = useState(false);
@@ -473,7 +569,7 @@ function App() {
     if (!avatarUrl) return <span className="avatar-placeholder">👤</span>;
     
     if (avatarUrl.startsWith('/') || avatarUrl.startsWith('http')) {
-      return <img src={avatarUrl} alt={nicknameStr} className={cssClass} />;
+      return <TransparentAvatar src={avatarUrl} alt={nicknameStr} className={cssClass} />;
     }
     // Fallback emoji
     return <span className="avatar-emoji-text">{avatarUrl}</span>;
@@ -537,9 +633,9 @@ function App() {
                             <span className="lock-text">TAKEN</span>
                           </div>
                         )}
-                        <div className="character-avatar-frame">
-                          <img src={char.image} alt={char.name} />
-                        </div>
+                         <div className="character-avatar-frame">
+                           <TransparentAvatar src={char.image} alt={char.name} />
+                         </div>
                         <div className="character-details">
                           <h4>{char.name}</h4>
                           <span>{char.series}</span>
