@@ -769,10 +769,24 @@ function App() {
             {/* Character Dock */}
             <div className="typing-indicator-dock">
               {/* Other Online Friends */}
-              {otherUsers.map((user) => {
+              {otherUsers.map((user, index) => {
                 const isUserTyping = typingUsers.some((u) => u.id === user.id);
+                const playerTag = `${index + 2}P`;
                 return (
-                  <div key={user.id} className="typing-avatar-node">
+                  <div key={user.id} className="typing-avatar-node arcade-node">
+                    {/* Player Badge */}
+                    <div className="arcade-player-badge" style={{ '--badge-color': user.color }}>
+                      {playerTag}
+                    </div>
+
+                    {/* Arcade Corner Brackets */}
+                    <div className="arcade-brackets" style={{ '--accent-glow': user.color }}>
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
+
                     {/* Thought cloud bubble (only visible when typing) */}
                     {isUserTyping && (
                       <>
@@ -794,16 +808,31 @@ function App() {
                       {renderAvatar(user.avatar, user.nickname, 'typing-avatar-img')}
                     </div>
                     
-                    {/* Name tag */}
-                    <span className="typing-name" style={{ color: user.color }}>
-                      {user.nickname}
-                    </span>
+                    {/* Arcade Name Plate */}
+                    <div className="arcade-name-plate" style={{ '--accent-glow': user.color }}>
+                      <span className="typing-name">
+                        {user.nickname}
+                      </span>
+                    </div>
                   </div>
                 );
               })}
 
               {/* Self Character (Always Visible) */}
-              <div className="typing-avatar-node self-node">
+              <div className="typing-avatar-node self-node arcade-node">
+                {/* Player Badge */}
+                <div className="arcade-player-badge self-badge" style={{ '--badge-color': selectedColor }}>
+                  1P
+                </div>
+
+                {/* Arcade Corner Brackets */}
+                <div className="arcade-brackets" style={{ '--accent-glow': selectedColor }}>
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+
                 {/* Thought cloud bubble (only visible when typing) */}
                 {isTyping && (
                   <>
@@ -825,10 +854,12 @@ function App() {
                   {renderAvatar(selectedAvatar, nickname, 'typing-avatar-img')}
                 </div>
                 
-                {/* Name tag */}
-                <span className="typing-name" style={{ color: selectedColor }}>
-                  {nickname} (you)
-                </span>
+                {/* Arcade Name Plate */}
+                <div className="arcade-name-plate self-name-plate" style={{ '--accent-glow': selectedColor }}>
+                  <span className="typing-name">
+                    {nickname}
+                  </span>
+                </div>
               </div>
             </div>
 

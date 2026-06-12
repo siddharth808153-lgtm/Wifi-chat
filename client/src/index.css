@@ -1633,13 +1633,10 @@ body {
 
 /* Character avatar sitting at the bottom */
 .typing-avatar-frame {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 2px solid var(--accent-glow);
-  box-shadow: 0 0 12px var(--accent-glow);
-  overflow: hidden;
-  background: rgba(0, 0, 0, 0.4);
+  width: 56px;
+  height: 56px;
+  overflow: visible;
+  background: transparent;
   margin-top: 24px; /* Space for the thought bubbles */
   display: flex;
   justify-content: center;
@@ -1650,7 +1647,7 @@ body {
 .typing-avatar-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .typing-name {
@@ -1695,8 +1692,8 @@ body {
   }
   
   .typing-avatar-frame {
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
     margin-top: 18px;
   }
   
@@ -1714,10 +1711,194 @@ body {
 @keyframes selfBreathe {
   0% {
     transform: translateY(0) scale(1);
-    box-shadow: 0 0 8px var(--accent-glow);
+    filter: drop-shadow(0 0 4px var(--accent-glow));
   }
   100% {
     transform: translateY(-3px) scale(1.04);
-    box-shadow: 0 0 16px var(--accent-glow);
+    filter: drop-shadow(0 0 10px var(--accent-glow));
   }
 }
+
+/* ARCADE STYLE SELECTION CARDS (TEKKEN 3 STYLE) */
+.arcade-node {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* 1P / 2P Player Badge */
+.arcade-player-badge {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--badge-color);
+  color: #fff;
+  font-family: 'Outfit', 'Impact', 'Arial Black', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 950;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 8px var(--badge-color);
+  z-index: 60;
+  letter-spacing: 0.05em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+}
+
+.arcade-player-badge.self-badge {
+  animation: arcadeFlash 0.6s infinite alternate;
+}
+
+@keyframes arcadeFlash {
+  0% {
+    opacity: 0.6;
+    box-shadow: 0 0 4px var(--badge-color);
+  }
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 12px var(--badge-color);
+  }
+}
+
+/* Tekken-style Selector Brackets */
+.arcade-brackets {
+  position: absolute;
+  top: 21px;
+  width: 62px;
+  height: 62px;
+  pointer-events: none;
+  z-index: 55;
+  animation: bracketsPulse 1.5s infinite ease-in-out;
+}
+
+.arcade-brackets span {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-color: var(--accent-glow);
+  border-style: solid;
+}
+
+/* Top-Left */
+.arcade-brackets span:nth-child(1) {
+  top: 0;
+  left: 0;
+  border-width: 2.5px 0 0 2.5px;
+}
+/* Top-Right */
+.arcade-brackets span:nth-child(2) {
+  top: 0;
+  right: 0;
+  border-width: 2.5px 2.5px 0 0;
+}
+/* Bottom-Left */
+.arcade-brackets span:nth-child(3) {
+  bottom: 0;
+  left: 0;
+  border-width: 0 0 2.5px 2.5px;
+}
+/* Bottom-Right */
+.arcade-brackets span:nth-child(4) {
+  bottom: 0;
+  right: 0;
+  border-width: 0 2.5px 2.5px 0;
+}
+
+@keyframes bracketsPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+/* Avatar Frame inside Arcade Selector */
+.arcade-node .typing-avatar-frame {
+  width: 54px;
+  height: 54px;
+  border-radius: 6px; /* Square card look */
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6), inset 0 0 8px rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.6); /* Semi-transparent slate card base */
+  overflow: hidden;
+  margin-top: 25px;
+}
+
+/* Custom neon glow for self character */
+.arcade-node .typing-avatar-frame.self-frame {
+  border-color: var(--accent-glow);
+  box-shadow: 0 0 16px var(--accent-glow), inset 0 0 10px rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Arcade Name Plate */
+.arcade-name-plate {
+  margin-top: 6px;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-left: 4px solid var(--accent-glow);
+  padding: 2px 10px;
+  border-radius: 3px;
+  transform: skewX(-12deg); /* Classic Tekken slanted card tag */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  max-width: 85px;
+}
+
+.arcade-name-plate.self-name-plate {
+  border-color: var(--accent-glow);
+  border-left: 4px solid var(--accent-glow);
+  box-shadow: 0 0 10px rgba(var(--accent-glow), 0.4);
+}
+
+.arcade-name-plate .typing-name {
+  font-family: 'Outfit', 'Impact', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 850;
+  font-style: italic; /* retro slant */
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 0 4px var(--accent-glow);
+  max-width: 70px;
+  margin-top: 0;
+}
+
+/* Mobile responsive adjustments for Arcade UI */
+@media (max-width: 768px) {
+  .arcade-brackets {
+    top: 15px;
+    width: 48px;
+    height: 48px;
+  }
+  
+  .arcade-node .typing-avatar-frame {
+    width: 40px;
+    height: 40px;
+    margin-top: 19px;
+  }
+
+  .arcade-player-badge {
+    top: 5px;
+    font-size: 0.52rem;
+    padding: 1px 5px;
+  }
+
+  .arcade-name-plate {
+    padding: 1px 6px;
+    max-width: 65px;
+  }
+
+  .arcade-name-plate .typing-name {
+    font-size: 0.58rem;
+    max-width: 55px;
+  }
+}
+
