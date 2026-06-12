@@ -80,7 +80,7 @@ const TransparentAvatar = ({ src, alt, className }) => {
       return;
     }
 
-    const img = new Image();
+    const img = new window.Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       const canvas = document.createElement('canvas');
@@ -428,7 +428,7 @@ function App() {
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const img = new Image();
+      const img = new window.Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const MAX_WIDTH = 800;
