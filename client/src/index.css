@@ -1904,3 +1904,45 @@ body {
   }
 }
 
+/* Media attachment placeholder for persistent storage history */
+.msg-media-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 12px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.15);
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  min-width: 180px;
+  text-align: center;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.msg-media-placeholder:hover {
+  background: rgba(0, 0, 0, 0.35);
+  border-color: var(--accent-glow);
+}
+
+.media-placeholder-note {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.file-missing-note {
+  font-style: italic;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+/* Clear chat button header hover style */
+.clear-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+}
+

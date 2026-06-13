@@ -163,6 +163,21 @@ const TransparentAvatar = ({ src, alt, className }) => {
   return <img src={processedSrc} alt={alt} className={className} />;
 };
 
+// Helper to save messages to localStorage without large file attachments (saves quota)
+const saveMessagesToStorage = (messagesArray) => {
+  try {
+    const cleaned = messagesArray.map((msg) => {
+      if (msg.fileData) {
+        return { ...msg, fileData: '' };
+      }
+      return msg;
+    });
+    localStorage.setItem('wifi_chat_messages', JSON.stringify(cleaned));
+  } catch (e) {
+    console.error('Failed to persist messages to localStorage', e);
+  }
+};
+
 function App() {
   // Lobby States
   const [joined, setJoined] = useState(false);
@@ -175,7 +190,14 @@ function App() {
   const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState([]);
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState(() => {
+    try {
+      const stored = localStorage.getItem('wifi_chat_messages');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [typingUsers, setTypingUsers] = useState([]);
   
   // Input States
@@ -286,6 +308,16 @@ function App() {
       setSelectedAvatar(userProfile.avatar);
       setSelectedColor(userProfile.color);
       
+      // Load saved messages from local history
+      try {
+        const stored = localStorage.getItem('wifi_chat_messages');
+        if (stored) {
+          setMessages(JSON.parse(stored));
+        }
+      } catch (e) {
+        console.warn('Error loading messages from localStorage', e);
+      }
+      
       const matchedChar = ANIME_CHARACTERS.find(c => c.image === userProfile.avatar);
       if (matchedChar) {
         setSelectedCharId(matchedChar.id);
@@ -374,6 +406,75 @@ function App() {
     setMessages([]);
     setTypingUsers([]);
   };
+
+  // Export/Save entire chat history to a formatted text file
+  const handleSaveChat = () => {
+    if (messages.length === 0) {
+      alert("No messages to save.");
+      return;
+    }
+
+    let logText = `=========================================\n`;
+    logText += `WIFI WAVE CHAT LOG - ${new Date().toLocaleString()}\n`;
+    logText += `=========================================\n\n`;
+
+    messages.forEach((msg) => {
+      const time = new Date(msg.timestamp).toLocaleTimeString();
+      if (msg.isSystem) {
+        logText += `[${time}] System: ${msg.text}\n`;
+      } else {
+        const sender = msg.sender.nickname;
+        if (msg.type === 'text') {
+          logText += `[${time}] ${sender}: ${msg.text}\n`;
+        } else if (msg.type === 'image') {
+          logText += `[${time}] ${sender}: [Image - ${msg.fileName || 'image.jpg'}]\n`;
+        } else if (msg.type === 'voice') {
+          logText += `[${time}] ${sender}: [Voice Note]\n`;
+        } else if (msg.type === 'file') {
+          logText += `[${time}] ${sender}: [File - ${msg.fileName} (${formatFileSize(msg.fileSize)})]\n`;
+        }
+      }
+    });
+
+    const blob = new Blob([logText], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `wifi-chat-log-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Clear chat history locally (states + localStorage)
+  const handleClearChat = () => {
+    if (window.confirm("Are you sure you want to clear all chat history locally? This action cannot be undone.")) {
+      setMessages([]);
+      localStorage.removeItem('wifi_chat_messages');
+    }
+  };
+
+  // Synchronize in-memory messages with localStorage (only if joined)
+  useEffect(() => {
+    if (joined) {
+      saveMessagesToStorage(messages);
+    }
+  }, [messages, joined]);
+
+  // Global keyboard shortcut to clear chat (Ctrl+Shift+5)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if (e.ctrlKey && e.shiftKey && (e.key === '5' || e.keyCode === 53)) {
+        e.preventDefault();
+        handleClearChat();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+    };
+  }, []);
 
   // Text message submission
   const handleSendMessage = (e) => {
@@ -701,6 +802,25 @@ function App() {
               <span className="btn-label">Invite Friend</span>
             </button>
 
+            <button 
+              className="header-btn" 
+              onClick={handleSaveChat} 
+              title="Save Chat Logs"
+            >
+              <Download size={20} />
+              <span className="btn-label">Save Chat</span>
+            </button>
+
+            <button 
+              id="clear-chat-btn"
+              className="header-btn clear-btn" 
+              onClick={handleClearChat} 
+              title="Clear Chat (Ctrl+Shift+5)"
+            >
+              <Trash2 size={20} />
+              <span className="btn-label">Clear Chat</span>
+            </button>
+
             <div className="header-theme-selector">
               <Palette size={18} />
               <select value={theme} onChange={(e) => changeTheme(e.target.value)}>
@@ -812,18 +932,34 @@ function App() {
                           {/* Image Messages */}
                           {msg.type === 'image' && (
                             <div className="msg-image-attachment">
-                              <img 
-                                src={msg.fileData} 
-                                alt={msg.fileName} 
-                                onClick={() => setPreviewImage(msg.fileData)}
-                              />
+                              {msg.fileData ? (
+                                <img 
+                                  src={msg.fileData} 
+                                  alt={msg.fileName} 
+                                  onClick={() => setPreviewImage(msg.fileData)}
+                                />
+                              ) : (
+                                <div className="msg-media-placeholder">
+                                  <Image size={24} />
+                                  <span>Image ({msg.fileName})</span>
+                                  <span className="media-placeholder-note">Not stored in local history</span>
+                                </div>
+                              )}
                             </div>
                           )}
 
                           {/* Voice Message */}
                           {msg.type === 'voice' && (
                             <div className="msg-voice-attachment">
-                              <audio src={msg.fileData} controls className="styled-audio" />
+                              {msg.fileData ? (
+                                <audio src={msg.fileData} controls className="styled-audio" />
+                              ) : (
+                                <div className="msg-media-placeholder">
+                                  <Mic size={24} />
+                                  <span>Voice Note</span>
+                                  <span className="media-placeholder-note">Not stored in local history</span>
+                                </div>
+                              )}
                             </div>
                           )}
 
@@ -837,14 +973,18 @@ function App() {
                                   <div className="file-size">{formatFileSize(msg.fileSize)}</div>
                                 </div>
                               </div>
-                              <a 
-                                href={msg.fileData} 
-                                download={msg.fileName} 
-                                className="file-download-btn"
-                                title="Download File"
-                              >
-                                <Download size={16} />
-                              </a>
+                              {msg.fileData ? (
+                                <a 
+                                  href={msg.fileData} 
+                                  download={msg.fileName} 
+                                  className="file-download-btn"
+                                  title="Download File"
+                                >
+                                  <Download size={16} />
+                                </a>
+                              ) : (
+                                <span className="media-placeholder-note file-missing-note">Expired</span>
+                              )}
                             </div>
                           )}
 
