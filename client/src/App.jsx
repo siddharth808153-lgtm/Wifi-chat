@@ -10,21 +10,21 @@ import { QRCodeSVG } from 'qrcode.react';
 // Predefined 16 Famous Anime Characters with custom theme colors
 const ANIME_CHARACTERS = [
   { id: 'goku', name: 'Goku', series: 'Dragon Ball Z', image: '/avatars/goku.png?v=1', color: '#ff7b00' },
-  { id: 'naruto', name: 'Naruto', series: 'Naruto', image: '/avatars/naruto.png', color: '#f1c40f' },
-  { id: 'luffy', name: 'Luffy', series: 'One Piece', image: '/avatars/luffy.png', color: '#e74c3c' },
-  { id: 'gojo', name: 'Gojo Satoru', series: 'Jujutsu Kaisen', image: '/avatars/gojo.png', color: '#9b59b6' },
-  { id: 'sasuke', name: 'Sasuke', series: 'Naruto', image: '/avatars/sasuke.png', color: '#2980b9' },
-  { id: 'zoro', name: 'Zoro', series: 'One Piece', image: '/avatars/zoro.png', color: '#2ecc71' },
-  { id: 'saitama', name: 'Saitama', series: 'One Punch Man', image: '/avatars/saitama.png', color: '#f39c12' },
-  { id: 'nezuko', name: 'Nezuko', series: 'Demon Slayer', image: '/avatars/nezuko.png', color: '#fd79a8' },
-  { id: 'vegeta', name: 'Vegeta', series: 'Dragon Ball Z', image: '/avatars/vegeta.png', color: '#1e3799' },
-  { id: 'tanjiro', name: 'Tanjiro', series: 'Demon Slayer', image: '/avatars/tanjiro.png', color: '#009432' },
-  { id: 'deku', name: 'Deku', series: 'My Hero Academia', image: '/avatars/deku.png', color: '#00d2d3' },
-  { id: 'kakashi', name: 'Kakashi', series: 'Naruto', image: '/avatars/kakashi.png', color: '#8395a7' },
-  { id: 'eren', name: 'Eren Yeager', series: 'Attack on Titan', image: '/avatars/eren.png', color: '#485460' },
-  { id: 'levi', name: 'Levi', series: 'Attack on Titan', image: '/avatars/levi.png', color: '#2f3542' },
-  { id: 'killua', name: 'Killua', series: 'Hunter x Hunter', image: '/avatars/killua.png', color: '#a55eea' },
-  { id: 'hinata', name: 'Hinata', series: 'Naruto', image: '/avatars/hinata.png', color: '#fda7df' }
+  { id: 'naruto', name: 'Naruto', series: 'Naruto', image: '/avatars/naruto.png?v=1', color: '#f1c40f' },
+  { id: 'luffy', name: 'Luffy', series: 'One Piece', image: '/avatars/luffy.png?v=1', color: '#e74c3c' },
+  { id: 'gojo', name: 'Gojo Satoru', series: 'Jujutsu Kaisen', image: '/avatars/gojo.png?v=1', color: '#9b59b6' },
+  { id: 'sasuke', name: 'Sasuke', series: 'Naruto', image: '/avatars/sasuke.png?v=1', color: '#2980b9' },
+  { id: 'zoro', name: 'Zoro', series: 'One Piece', image: '/avatars/zoro.png?v=1', color: '#2ecc71' },
+  { id: 'saitama', name: 'Saitama', series: 'One Punch Man', image: '/avatars/saitama.png?v=1', color: '#f39c12' },
+  { id: 'nezuko', name: 'Nezuko', series: 'Demon Slayer', image: '/avatars/nezuko.png?v=1', color: '#fd79a8' },
+  { id: 'vegeta', name: 'Vegeta', series: 'Dragon Ball Z', image: '/avatars/vegeta.png?v=1', color: '#1e3799' },
+  { id: 'tanjiro', name: 'Tanjiro', series: 'Demon Slayer', image: '/avatars/tanjiro.png?v=1', color: '#009432' },
+  { id: 'deku', name: 'Deku', series: 'My Hero Academia', image: '/avatars/deku.png?v=1', color: '#00d2d3' },
+  { id: 'kakashi', name: 'Kakashi', series: 'Naruto', image: '/avatars/kakashi.png?v=1', color: '#8395a7' },
+  { id: 'eren', name: 'Eren Yeager', series: 'Attack on Titan', image: '/avatars/eren.png?v=1', color: '#485460' },
+  { id: 'levi', name: 'Levi', series: 'Attack on Titan', image: '/avatars/levi.png?v=1', color: '#2f3542' },
+  { id: 'killua', name: 'Killua', series: 'Hunter x Hunter', image: '/avatars/killua.png?v=1', color: '#a55eea' },
+  { id: 'hinata', name: 'Hinata', series: 'Naruto', image: '/avatars/hinata.png?v=1', color: '#fda7df' }
 ];
 
 // Predefined emojis for the quick emoji selector
