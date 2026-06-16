@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 import { 
   Send, Image, Mic, Paperclip, Smile, Users, QrCode, 
   Wifi, WifiOff, LogOut, Palette, Trash2, Play, Pause, 
-  X, CheckCheck, Square, Download, FileText, Sparkles, Lock
+  X, CheckCheck, Square, Download, FileText, Sparkles, Lock, Paintbrush
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -178,6 +178,295 @@ const saveMessagesToStorage = (messagesArray) => {
   }
 };
 
+// Collaborative Sketchpad modal component
+const SketchpadModal = ({ onClose, onSend, socket, activeChatId }) => {
+  const canvasRef = useRef(null);
+  const contextRef = useRef(null);
+  const [color, setColor] = useState('#ff7b00');
+  const [lineWidth, setLineWidth] = useState(5);
+  const [isEraser, setIsEraser] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const lastPos = useRef({ x: 0, y: 0 });
+
+  const colors = [
+    { name: 'Orange', value: '#ff7b00' },
+    { name: 'Yellow', value: '#f1c40f' },
+    { name: 'Pink', value: '#fd79a8' },
+    { name: 'Blue', value: '#58a6ff' },
+    { name: 'Green', value: '#2ecc71' },
+    { name: 'Purple', value: '#9b59b6' },
+    { name: 'White', value: '#ffffff' }
+  ];
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // Fixed internal resolution (800x600) for consistent cross-client drawing coordinates
+    canvas.width = 800;
+    canvas.height = 600;
+    canvas.style.width = '100%';
+    canvas.style.height = 'auto';
+
+    const context = canvas.getContext('2d');
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    contextRef.current = context;
+
+    // Fill background with canvas color
+    context.fillStyle = '#10141b';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Notify other users that we are actively sketching
+    socket.emit('drawing-activity', {
+      isDrawing: true,
+      recipientId: activeChatId === 'general' ? null : activeChatId
+    });
+
+    // Request active canvas state from anyone else drawing
+    socket.emit('request-canvas-state', {
+      recipientId: activeChatId === 'general' ? null : activeChatId,
+      senderId: socket.id
+    });
+
+    // Local custom event handlers mapping back from socket
+    const handleRemoteDrawing = (e) => {
+      const { prevX, prevY, currX, currY, color: remoteColor, lineWidth: remoteWidth, senderId } = e.detail;
+      if (senderId === socket.id) return;
+
+      const ctx = contextRef.current;
+      if (ctx) {
+        ctx.beginPath();
+        ctx.moveTo(prevX, prevY);
+        ctx.lineTo(currX, currY);
+        ctx.strokeStyle = remoteColor;
+        ctx.lineWidth = remoteWidth;
+        ctx.stroke();
+        ctx.closePath();
+      }
+    };
+
+    const handleRemoteClear = (e) => {
+      const { senderId } = e.detail;
+      if (senderId === socket.id) return;
+      const ctx = contextRef.current;
+      if (ctx) {
+        ctx.fillStyle = '#10141b';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+    };
+
+    const handleRequestState = (e) => {
+      const { senderId } = e.detail;
+      if (senderId === socket.id) return;
+      
+      const dataUrl = canvas.toDataURL('image/png');
+      socket.emit('send-canvas-state', {
+        canvasState: dataUrl,
+        recipientId: senderId,
+        senderId: socket.id
+      });
+    };
+
+    const handleReceiveState = (e) => {
+      const { canvasState, senderId } = e.detail;
+      if (senderId === socket.id) return;
+      
+      const img = new window.Image();
+      img.onload = () => {
+        const ctx = contextRef.current;
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+        }
+      };
+      img.src = canvasState;
+    };
+
+    window.addEventListener('remote-drawing-stroke', handleRemoteDrawing);
+    window.addEventListener('remote-drawing-clear', handleRemoteClear);
+    window.addEventListener('remote-request-canvas-state', handleRequestState);
+    window.addEventListener('remote-send-canvas-state', handleReceiveState);
+
+    return () => {
+      window.removeEventListener('remote-drawing-stroke', handleRemoteDrawing);
+      window.removeEventListener('remote-drawing-clear', handleRemoteClear);
+      window.removeEventListener('remote-request-canvas-state', handleRequestState);
+      window.removeEventListener('remote-send-canvas-state', handleReceiveState);
+      
+      socket.emit('drawing-activity', {
+        isDrawing: false,
+        recipientId: activeChatId === 'general' ? null : activeChatId
+      });
+    };
+  }, [socket, activeChatId]);
+
+  const getCoordinates = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+
+    const rect = canvas.getBoundingClientRect();
+    let clientX, clientY;
+
+    if (e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+
+    const x = ((clientX - rect.left) / rect.width) * canvas.width;
+    const y = ((clientY - rect.top) / rect.height) * canvas.height;
+    return { x, y };
+  };
+
+  const startDrawing = (e) => {
+    // Prevent default scrolling on mobile touch
+    if (e.cancelable) e.preventDefault();
+    const coords = getCoordinates(e);
+    if (!coords) return;
+    
+    lastPos.current = coords;
+    setIsDrawing(true);
+  };
+
+  const draw = (e) => {
+    if (!isDrawing) return;
+    if (e.cancelable) e.preventDefault();
+    const coords = getCoordinates(e);
+    if (!coords) return;
+
+    const ctx = contextRef.current;
+    if (!ctx) return;
+
+    const brushColor = isEraser ? '#10141b' : color;
+
+    ctx.beginPath();
+    ctx.moveTo(lastPos.current.x, lastPos.current.y);
+    ctx.lineTo(coords.x, coords.y);
+    ctx.strokeStyle = brushColor;
+    ctx.lineWidth = lineWidth;
+    ctx.stroke();
+    ctx.closePath();
+
+    socket.emit('drawing-stroke', {
+      prevX: lastPos.current.x,
+      prevY: lastPos.current.y,
+      currX: coords.x,
+      currY: coords.y,
+      color: brushColor,
+      lineWidth,
+      recipientId: activeChatId === 'general' ? null : activeChatId,
+      senderId: socket.id
+    });
+
+    lastPos.current = coords;
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    const ctx = contextRef.current;
+    if (canvas && ctx) {
+      ctx.fillStyle = '#10141b';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      socket.emit('drawing-clear', {
+        recipientId: activeChatId === 'general' ? null : activeChatId,
+        senderId: socket.id
+      });
+    }
+  };
+
+  const handlePost = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const dataUrl = canvas.toDataURL('image/png');
+    onSend(dataUrl);
+  };
+
+  return (
+    <div className="sketchpad-modal-overlay" onClick={onClose}>
+      <div className="sketchpad-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="sketchpad-header">
+          <h3>🎨 Collaborative Sketchpad</h3>
+          <button className="close-btn" onClick={onClose}>
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="sketchpad-canvas-container">
+          <canvas
+            ref={canvasRef}
+            className="sketchpad-canvas"
+            onMouseDown={startDrawing}
+            onMouseMove={draw}
+            onMouseUp={stopDrawing}
+            onMouseLeave={stopDrawing}
+            onTouchStart={startDrawing}
+            onTouchMove={draw}
+            onTouchEnd={stopDrawing}
+          />
+        </div>
+
+        <div className="sketchpad-controls">
+          <div className="sketchpad-tools-left">
+            <div className="color-palette">
+              {colors.map((c) => (
+                <button
+                  key={c.name}
+                  className={`color-swatch ${color === c.value && !isEraser ? 'active' : ''}`}
+                  style={{ backgroundColor: c.value, '--swatch-color': c.value }}
+                  onClick={() => {
+                    setColor(c.value);
+                    setIsEraser(false);
+                  }}
+                  title={c.name}
+                />
+              ))}
+            </div>
+
+            <button
+              className={`sketch-btn ${isEraser ? 'sketch-btn-primary' : 'sketch-btn-secondary'}`}
+              onClick={() => setIsEraser(!isEraser)}
+              style={isEraser ? { '--btn-accent': '#ef4444' } : {}}
+            >
+              🧹 Eraser
+            </button>
+
+            <div className="brush-slider-container">
+              <span>Size:</span>
+              <input
+                type="range"
+                min="1"
+                max="20"
+                value={lineWidth}
+                onChange={(e) => setLineWidth(parseInt(e.target.value))}
+                className="brush-slider"
+                style={{ '--accent-color': isEraser ? '#ef4444' : color }}
+              />
+              <span>{lineWidth}px</span>
+            </div>
+          </div>
+
+          <div className="sketchpad-actions-right">
+            <button className="sketch-btn sketch-btn-danger" onClick={clearCanvas}>
+              🗑️ Clear
+            </button>
+            <button className="sketch-btn sketch-btn-primary" onClick={handlePost}>
+              🚀 Post Sketch
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function App() {
   // Lobby States
   const [joined, setJoined] = useState(false);
@@ -205,6 +494,14 @@ function App() {
   const [isTyping, setIsTyping] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   
+  // Edit/Delete States
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editText, setEditText] = useState('');
+  
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  
   // Voice Note Recording States
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -213,6 +510,14 @@ function App() {
   const [theme, setTheme] = useState('glass-dark');
   const [showQR, setShowQR] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
+  
+  // DM/Channel States
+  const [activeChatId, setActiveChatId] = useState('general');
+  const [unreadCounts, setUnreadCounts] = useState({});
+  
+  // Sketchpad States
+  const [showSketchpad, setShowSketchpad] = useState(false);
+  const [sketchpadActiveUsers, setSketchpadActiveUsers] = useState({});
   
   // Refs
   const messagesEndRef = useRef(null);
@@ -223,6 +528,28 @@ function App() {
 
   // Derived state: Online users other than the current client
   const otherUsers = onlineUsers.filter((user) => user.id !== socket?.id);
+
+  // Derived state: Is another user currently drawing in the active room/DM
+  const isSomeoneSketching = Object.entries(sketchpadActiveUsers).some(([id, details]) => {
+    if (id === socket?.id) return false;
+    if (activeChatId === 'general') {
+      return !details.recipientId;
+    } else {
+      return details.recipientId === socket?.id && id === activeChatId;
+    }
+  });
+
+  const handleSendSketch = (dataUrl) => {
+    if (!socket) return;
+    socket.emit('send-message', {
+      type: 'image',
+      text: '🎨 Shared a sketch',
+      fileData: dataUrl,
+      fileName: `sketch-${Date.now()}.png`,
+      recipientId: activeChatId === 'general' ? null : activeChatId
+    });
+    setShowSketchpad(false);
+  };
 
   // Load selection settings helper or auto-generate defaults
   useEffect(() => {
@@ -281,20 +608,43 @@ function App() {
 
     socketInstance.on('users-update', (users) => {
       setOnlineUsers(users);
+      setActiveChatId((currentActive) => {
+        if (currentActive !== 'general' && !users.some(u => u.id === currentActive)) {
+          return 'general';
+        }
+        return currentActive;
+      });
     });
 
     socketInstance.on('message', (msg) => {
       setMessages((prev) => [...prev, msg]);
+      
+      // Handle unread counts for private messages
+      if (msg.recipientId && msg.sender && msg.sender.id !== socketInstance.id) {
+        const senderId = msg.sender.id;
+        setActiveChatId((currentActive) => {
+          if (currentActive !== senderId) {
+            setUnreadCounts((prev) => ({
+              ...prev,
+              [senderId]: (prev[senderId] || 0) + 1
+            }));
+          }
+          return currentActive;
+        });
+      }
+
       if (msg.sender && msg.sender.id !== socketInstance.id && !msg.isSystem) {
         playReceiveSound();
       }
     });
 
-    socketInstance.on('user-typing', ({ id, nickname: userNick, avatar, color, isTyping: isUserTyping }) => {
+    socketInstance.on('user-typing', ({ id, nickname: userNick, avatar, color, isTyping: isUserTyping, recipientId }) => {
       setTypingUsers((prev) => {
         if (isUserTyping) {
-          if (prev.some(u => u.id === id)) return prev;
-          return [...prev, { id, nickname: userNick, avatar, color }];
+          if (prev.some(u => u.id === id)) {
+            return prev.map(u => u.id === id ? { id, nickname: userNick, avatar, color, recipientId } : u);
+          }
+          return [...prev, { id, nickname: userNick, avatar, color, recipientId }];
         } else {
           return prev.filter(u => u.id !== id);
         }
@@ -337,10 +687,90 @@ function App() {
       setJoined(false);
     });
 
+    // Handle message edits
+    socketInstance.on('message-edited', ({ messageId, text, editedAt }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, text, edited: true, editedAt } : msg
+        )
+      );
+    });
+
+    // Handle message deletions
+    socketInstance.on('message-deleted', ({ messageId }) => {
+      setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+    });
+
+    // Handle message reaction updates
+    socketInstance.on('message-reaction-updated', ({ messageId, reactions }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, reactions } : msg
+        )
+      );
+    });
+
+    // Collaborative drawing socket listeners
+    socketInstance.on('drawing-stroke', (drawData) => {
+      window.dispatchEvent(new CustomEvent('remote-drawing-stroke', { detail: drawData }));
+    });
+
+    socketInstance.on('drawing-clear', (clearData) => {
+      window.dispatchEvent(new CustomEvent('remote-drawing-clear', { detail: clearData }));
+    });
+
+    socketInstance.on('drawing-activity', ({ id, nickname, isDrawing, recipientId }) => {
+      setSketchpadActiveUsers((prev) => {
+        const next = { ...prev };
+        if (isDrawing) {
+          next[id] = { nickname, recipientId };
+        } else {
+          delete next[id];
+        }
+        return next;
+      });
+    });
+
+    socketInstance.on('request-canvas-state', (requestData) => {
+      window.dispatchEvent(new CustomEvent('remote-request-canvas-state', { detail: requestData }));
+    });
+
+    socketInstance.on('send-canvas-state', (stateData) => {
+      window.dispatchEvent(new CustomEvent('remote-send-canvas-state', { detail: stateData }));
+    });
+
     return () => {
       socketInstance.disconnect();
     };
   }, []);
+
+  const handleSelectChat = (chatId) => {
+    setActiveChatId(chatId);
+    if (chatId !== 'general') {
+      setUnreadCounts((prev) => {
+        const next = { ...prev };
+        delete next[chatId];
+        return next;
+      });
+    }
+  };
+
+  const getConversationMessages = () => {
+    return messages.filter((msg) => {
+      if (activeChatId === 'general') {
+        return !msg.recipientId;
+      } else {
+        if (msg.isSystem) return false;
+        const myId = socket?.id;
+        return (
+          (msg.sender?.id === myId && msg.recipientId === activeChatId) ||
+          (msg.sender?.id === activeChatId && msg.recipientId === myId)
+        );
+      }
+    });
+  };
+
+  const conversationMessages = getConversationMessages();
 
   // Handle character selection in lobby
   const handleSelectCharacter = (char) => {
@@ -405,6 +835,8 @@ function App() {
     setJoined(false);
     setMessages([]);
     setTypingUsers([]);
+    setActiveChatId('general');
+    setUnreadCounts({});
   };
 
   // Export/Save entire chat history to a formatted text file
@@ -483,17 +915,83 @@ function App() {
 
     socket.emit('send-message', {
       type: 'text',
-      text: inputText
+      text: inputText,
+      recipientId: activeChatId === 'general' ? null : activeChatId
     });
 
     setInputText('');
     
     // Trigger typing stop immediately
     if (isTyping) {
-      socket.emit('typing', false);
+      socket.emit('typing', {
+        isTyping: false,
+        recipientId: activeChatId === 'general' ? null : activeChatId
+      });
       setIsTyping(false);
     }
   };
+
+  // Start editing a message
+  const handleStartEdit = (messageId, currentText) => {
+    setEditingMessageId(messageId);
+    setEditText(currentText);
+  };
+
+  // Save edited message
+  const handleSaveEdit = (messageId) => {
+    if (!editText.trim() || !socket) return;
+    
+    socket.emit('edit-message', {
+      messageId,
+      text: editText
+    });
+    
+    setEditingMessageId(null);
+    setEditText('');
+  };
+
+  // Cancel editing
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditText('');
+  };
+
+  // Delete a message
+  const handleDeleteMessage = (messageId) => {
+    if (!socket) return;
+    if (window.confirm('Are you sure you want to delete this message?')) {
+      socket.emit('delete-message', { messageId });
+    }
+  };
+
+  // Toggle message reaction
+  const handleToggleReaction = (messageId, emoji) => {
+    if (!socket) return;
+    socket.emit('toggle-reaction', {
+      messageId,
+      emoji
+    });
+  };
+
+  // Search messages
+  const getFilteredMessages = () => {
+    const convoMsgs = getConversationMessages();
+    if (!searchQuery.trim()) return convoMsgs;
+    
+    const query = searchQuery.toLowerCase();
+    return convoMsgs.filter((msg) => {
+      if (msg.isSystem) return false;
+      if (msg.type === 'text') {
+        return msg.text.toLowerCase().includes(query);
+      }
+      if (msg.sender && msg.sender.nickname) {
+        return msg.sender.nickname.toLowerCase().includes(query);
+      }
+      return false;
+    });
+  };
+
+  const filteredMessages = getFilteredMessages();
 
   // Typing state detection
   const handleTextInputChange = (e) => {
@@ -502,7 +1000,10 @@ function App() {
     if (!socket) return;
 
     if (!isTyping) {
-      socket.emit('typing', true);
+      socket.emit('typing', {
+        isTyping: true,
+        recipientId: activeChatId === 'general' ? null : activeChatId
+      });
       setIsTyping(true);
     }
 
@@ -511,7 +1012,10 @@ function App() {
     }
 
     typingTimeoutRef.current = setTimeout(() => {
-      socket.emit('typing', false);
+      socket.emit('typing', {
+        isTyping: false,
+        recipientId: activeChatId === 'general' ? null : activeChatId
+      });
       setIsTyping(false);
     }, 1500);
   };
@@ -553,7 +1057,8 @@ function App() {
           type: 'image',
           text: `Sent an image: ${file.name}`,
           fileData: dataUrl,
-          fileName: file.name
+          fileName: file.name,
+          recipientId: activeChatId === 'general' ? null : activeChatId
         });
       };
       img.src = event.target.result;
@@ -578,7 +1083,8 @@ function App() {
         text: `Shared a file: ${file.name}`,
         fileData: event.target.result,
         fileName: file.name,
-        fileSize: file.size
+        fileSize: file.size,
+        recipientId: activeChatId === 'general' ? null : activeChatId
       });
     };
     reader.readAsDataURL(file);
@@ -606,7 +1112,8 @@ function App() {
             type: 'voice',
             text: 'Voice note',
             fileData: event.target.result,
-            fileName: 'voice-note.webm'
+            fileName: 'voice-note.webm',
+            recipientId: activeChatId === 'general' ? null : activeChatId
           });
         };
         reader.readAsDataURL(audioBlob);
@@ -781,7 +1288,22 @@ function App() {
           <div className="header-left">
             <div className="app-logo">🌊</div>
             <div>
-              <h2>Wave Chat</h2>
+              {activeChatId === 'general' ? (
+                <h2>Wave Chat</h2>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button 
+                    onClick={() => handleSelectChat('general')}
+                    className="theme-btn"
+                    style={{ padding: '2px 8px', fontSize: '0.8rem', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '6px', border: '1px solid var(--glass-border)', cursor: 'pointer' }}
+                  >
+                    ← Back
+                  </button>
+                  <h2 style={{ fontSize: '1.1rem' }}>
+                    DM with {onlineUsers.find(u => u.id === activeChatId)?.nickname || 'Friend'}
+                  </h2>
+                </div>
+              )}
               <div className="status-indicator">
                 {connected ? (
                   <span className="online-badge"><Wifi size={12} /> Connected to WiFi Server</span>
@@ -863,23 +1385,55 @@ function App() {
             )}
 
             <div className="users-panel">
+              {/* CHANNELS SECTION */}
               <div className="panel-header">
                 <Users size={16} />
-                <h3>Online Friends ({onlineUsers.length})</h3>
+                <h3>Channels</h3>
+              </div>
+              <div className="users-list" style={{ marginBottom: '16px' }}>
+                <div 
+                  className={`user-item ${activeChatId === 'general' ? 'active' : ''}`}
+                  onClick={() => handleSelectChat('general')}
+                >
+                  <div className="user-avatar-frame-small" style={{ '--accent-glow': 'var(--accent-color)' }}>
+                    <span className="avatar-emoji-text">🌐</span>
+                  </div>
+                  <span className="user-nickname" style={{ fontWeight: 'bold' }}>
+                    # general
+                  </span>
+                </div>
+              </div>
+
+              {/* DIRECT MESSAGES SECTION */}
+              <div className="panel-header">
+                <Users size={16} />
+                <h3>Direct Messages</h3>
               </div>
               <div className="users-list">
-                {onlineUsers.map((user) => (
-                  <div key={user.id} className="user-item">
-                    <div className="user-avatar-frame-small" style={{ '--accent-glow': user.color }}>
-                      {renderAvatar(user.avatar, user.nickname, 'user-avatar-img-small')}
-                    </div>
-                    <span className="user-nickname" style={{ color: user.color }}>
-                      {user.nickname}
-                      {user.id === socket?.id && <span className="self-tag"> (you)</span>}
-                    </span>
-                    <span className="user-status-dot"></span>
+                {otherUsers.length === 0 ? (
+                  <div className="sidebar-empty-state">
+                    No other users online.<br/>Invite friends on your network to chat privately!
                   </div>
-                ))}
+                ) : (
+                  otherUsers.map((user) => (
+                    <div 
+                      key={user.id} 
+                      className={`user-item ${activeChatId === user.id ? 'active' : ''}`}
+                      onClick={() => handleSelectChat(user.id)}
+                    >
+                      <div className="user-avatar-frame-small" style={{ '--accent-glow': user.color }}>
+                        {renderAvatar(user.avatar, user.nickname, 'user-avatar-img-small')}
+                      </div>
+                      <span className="user-nickname" style={{ color: user.color }}>
+                        {user.nickname}
+                      </span>
+                      {unreadCounts[user.id] > 0 && (
+                        <span className="unread-badge">{unreadCounts[user.id]}</span>
+                      )}
+                      <span className="user-status-dot"></span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </aside>
@@ -889,14 +1443,28 @@ function App() {
             
             {/* Messages Viewport */}
             <div className="messages-viewport">
-              {messages.length === 0 ? (
-                <div className="chat-placeholder">
-                  <div className="placeholder-art">🌊</div>
-                  <h3>Welcome to WiFi Wave Chat!</h3>
-                  <p>Share the QR code or URL to invite friends on your same WiFi network and start chatting instantly.</p>
-                </div>
+              {filteredMessages.length === 0 ? (
+                searchQuery.trim() ? (
+                  <div className="chat-placeholder">
+                    <div className="placeholder-art">🔍</div>
+                    <h3>No results found</h3>
+                    <p>No messages match "{searchQuery}" in this conversation.</p>
+                  </div>
+                ) : activeChatId === 'general' ? (
+                  <div className="chat-placeholder">
+                    <div className="placeholder-art">🌊</div>
+                    <h3>Welcome to WiFi Wave Chat!</h3>
+                    <p>Share the QR code or URL to invite friends on your same WiFi network and start chatting instantly.</p>
+                  </div>
+                ) : (
+                  <div className="chat-placeholder">
+                    <div className="placeholder-art">🔒</div>
+                    <h3>Secret Chat Room</h3>
+                    <p>This conversation is private and encrypted between you and {onlineUsers.find(u => u.id === activeChatId)?.nickname || 'your friend'}.</p>
+                  </div>
+                )
               ) : (
-                messages.map((msg) => {
+                filteredMessages.map((msg) => {
                   if (msg.isSystem) {
                     return (
                       <div key={msg.id} className="message-system">
@@ -926,8 +1494,43 @@ function App() {
                           className="message-bubble"
                           style={isMe ? { '--bubble-accent': selectedColor } : { '--bubble-accent': msg.sender.color }}
                         >
-                          {/* Text Messages */}
-                          {msg.type === 'text' && <p className="msg-text">{msg.text}</p>}
+                          {/* Edit Mode */}
+                          {editingMessageId === msg.id && msg.type === 'text' ? (
+                            <div className="edit-message-form">
+                              <input
+                                type="text"
+                                value={editText}
+                                onChange={(e) => setEditText(e.target.value)}
+                                placeholder="Edit your message..."
+                                autoFocus
+                                className="edit-input"
+                              />
+                              <div className="edit-actions">
+                                <button
+                                  onClick={() => handleSaveEdit(msg.id)}
+                                  className="edit-save-btn"
+                                  title="Save edit (Ctrl+Enter)"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={handleCancelEdit}
+                                  className="edit-cancel-btn"
+                                  title="Cancel"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              {/* Text Messages */}
+                              {msg.type === 'text' && (
+                                <p className="msg-text">
+                                  {msg.text}
+                                  {msg.edited && <span className="msg-edited-indicator"> (edited)</span>}
+                                </p>
+                              )}
 
                           {/* Image Messages */}
                           {msg.type === 'image' && (
@@ -991,7 +1594,64 @@ function App() {
                           <div className="msg-metadata">
                             <span className="msg-time">{formatTime(msg.timestamp)}</span>
                             {isMe && <CheckCheck size={14} className="msg-status-icon" />}
+                            {isMe && msg.type === 'text' && (
+                              <div className="msg-actions">
+                                <button
+                                  onClick={() => handleStartEdit(msg.id, msg.text)}
+                                  className="msg-action-btn edit-btn"
+                                  title="Edit message"
+                                >
+                                  ✎
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteMessage(msg.id)}
+                                  className="msg-action-btn delete-btn"
+                                  title="Delete message"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            )}
                           </div>
+
+                          {/* Reactions */}
+                          {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                            <div className="msg-reactions">
+                              {Object.entries(msg.reactions).map(([emoji, userIds]) => (
+                                <button
+                                  key={emoji}
+                                  className={`reaction-btn ${userIds.includes(socket?.id) ? 'user-reacted' : ''}`}
+                                  onClick={() => handleToggleReaction(msg.id, emoji)}
+                                  title={`Reacted by ${userIds.length} user${userIds.length > 1 ? 's' : ''}`}
+                                >
+                                  <span className="reaction-emoji">{emoji}</span>
+                                  <span className="reaction-count">{userIds.length}</span>
+                                </button>
+                              ))}
+                              <button
+                                className="add-reaction-btn"
+                                onClick={() => handleToggleReaction(msg.id, EMOJIS[Math.floor(Math.random() * EMOJIS.length)])}
+                                title="Add reaction"
+                              >
+                                +
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Show add reaction button if no reactions exist */}
+                          {(!msg.reactions || Object.keys(msg.reactions).length === 0) && (
+                            <div className="msg-reactions empty">
+                              <button
+                                className="add-reaction-btn"
+                                onClick={() => handleToggleReaction(msg.id, EMOJIS[Math.floor(Math.random() * EMOJIS.length)])}
+                                title="Add reaction"
+                              >
+                                 +
+                              </button>
+                            </div>
+                          )}
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1006,7 +1666,7 @@ function App() {
             <div className="typing-indicator-dock">
               {/* Other Online Friends */}
               {otherUsers.map((user, index) => {
-                const isUserTyping = typingUsers.some((u) => u.id === user.id);
+                const isUserTyping = typingUsers.some((u) => u.id === user.id && (activeChatId === 'general' ? !u.recipientId : u.recipientId === socket?.id));
                 const playerTag = `${index + 2}P`;
                 return (
                   <div key={user.id} className="typing-avatar-node arcade-node">
@@ -1117,6 +1777,22 @@ function App() {
 
             {/* CHAT INPUT AREA */}
             <div className="chat-footer-controls">
+              {isSomeoneSketching && (
+                <div className="sketching-status-bar" style={{ marginBottom: '8px' }}>
+                  <span className="sketching-status-dot"></span>
+                  <span>
+                    {Object.entries(sketchpadActiveUsers)
+                      .filter(([id, details]) => {
+                        if (id === socket?.id) return false;
+                        if (activeChatId === 'general') return !details.recipientId;
+                        return details.recipientId === socket?.id && id === activeChatId;
+                      })
+                      .map(([id, details]) => details.nickname)
+                      .join(', ')}{' '}
+                    is drawing on the sketchpad...
+                  </span>
+                </div>
+              )}
               {isRecording ? (
                 // Recording Mode
                 <div className="recording-dashboard glass">
@@ -1167,6 +1843,18 @@ function App() {
                         style={{ display: 'none' }} 
                       />
                     </label>
+
+                    {/* Collaborative Sketchpad Trigger */}
+                    <button 
+                      type="button" 
+                      className={`btn-icon input-tool-btn ${showSketchpad ? 'active' : ''}`}
+                      onClick={() => setShowSketchpad(!showSketchpad)}
+                      title="Collaborative Sketchpad"
+                      style={{ position: 'relative' }}
+                    >
+                      <Paintbrush size={20} />
+                      {isSomeoneSketching && <span className="sketch-badge-notification"></span>}
+                    </button>
                   </div>
 
                   <input
@@ -1215,6 +1903,16 @@ function App() {
             <img src={previewImage} alt="Preview" />
           </div>
         </div>
+      )}
+
+      {/* COLLABORATIVE SKETCHPAD MODAL */}
+      {showSketchpad && (
+        <SketchpadModal
+          onClose={() => setShowSketchpad(false)}
+          onSend={handleSendSketch}
+          socket={socket}
+          activeChatId={activeChatId}
+        />
       )}
     </div>
   );

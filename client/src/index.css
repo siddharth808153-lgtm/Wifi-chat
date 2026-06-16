@@ -818,11 +818,53 @@ body {
   padding: 8px 12px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.02);
+  border: 1px solid transparent;
+  cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .user-item:hover {
   background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.04);
+}
+
+.user-item.active {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--glass-border-focus);
+}
+
+.sidebar-divider {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 16px 0 8px;
+  padding-left: 4px;
+}
+
+.unread-badge {
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 99px;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+  margin-right: 8px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.sidebar-empty-state {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 12px;
+  line-height: 1.4;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  margin-top: 8px;
 }
 
 .user-avatar-frame-small {
@@ -1944,5 +1986,481 @@ body {
   border-color: rgba(239, 68, 68, 0.3);
   color: #ef4444;
   box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+}
+
+/* MESSAGE EDIT/DELETE FUNCTIONALITY */
+
+/* Edit message form */
+.edit-message-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.edit-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--accent-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  transition: all var(--transition-fast);
+  outline: none;
+}
+
+.edit-input:focus {
+  background: rgba(0, 0, 0, 0.5);
+  border-color: var(--accent-hover);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
+}
+
+.edit-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.edit-save-btn,
+.edit-cancel-btn {
+  flex: 1;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+}
+
+.edit-save-btn {
+  background: var(--accent-color);
+  color: #fff;
+}
+
+.edit-save-btn:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+}
+
+.edit-cancel-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  border-color: var(--glass-border);
+}
+
+.edit-cancel-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-primary);
+}
+
+/* Message edited indicator */
+.msg-edited-indicator {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-left: 4px;
+}
+
+/* Edit/Delete action buttons */
+.msg-actions {
+  display: flex;
+  gap: 2px;
+  margin-left: 6px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.message-row:hover .msg-actions,
+.message-me:hover .msg-actions {
+  opacity: 1;
+}
+
+.msg-action-btn {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  transition: all var(--transition-fast);
+  opacity: 0.7;
+}
+
+.msg-action-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.msg-action-btn.edit-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.msg-action-btn.delete-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+/* MESSAGE REACTIONS */
+
+.msg-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+  align-items: center;
+}
+
+.msg-reactions.empty {
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.message-row:hover .msg-reactions.empty,
+.message-me:hover .msg-reactions.empty {
+  opacity: 1;
+}
+
+.reaction-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.reaction-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.reaction-btn.user-reacted {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #3b82f6;
+}
+
+.reaction-btn.user-reacted:hover {
+  background: rgba(59, 130, 246, 0.3);
+  border-color: rgba(59, 130, 246, 0.6);
+}
+
+.reaction-emoji {
+  font-size: 0.9rem;
+}
+
+.reaction-count {
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.add-reaction-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  transition: all var(--transition-fast);
+  opacity: 0.6;
+}
+
+.add-reaction-btn:hover {
+  opacity: 1;
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #3b82f6;
+}
+
+/* COLLABORATIVE SKETCHPAD MODAL */
+.sketchpad-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(10, 15, 30, 0.85);
+  backdrop-filter: blur(12px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: modalFadeIn 0.3s ease-out;
+}
+
+.sketchpad-modal {
+  width: 90%;
+  max-width: 760px;
+  background: rgba(22, 27, 34, 0.8);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(88, 166, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: relative;
+}
+
+.sketchpad-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sketchpad-header h3 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  background: linear-gradient(90deg, #58a6ff, #bc3bff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+
+.sketchpad-header .close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sketchpad-header .close-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  transform: scale(1.05);
+}
+
+.sketchpad-canvas-container {
+  background: #10141b;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  touch-action: none;
+}
+
+.sketchpad-canvas {
+  background: #10141b;
+  display: block;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.sketchpad-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.sketchpad-tools-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.color-palette {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.color-swatch:hover {
+  transform: scale(1.15);
+}
+
+.color-swatch.active {
+  border-color: #fff;
+  transform: scale(1.1);
+  box-shadow: 0 0 10px var(--swatch-color);
+}
+
+.brush-slider-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.brush-slider {
+  width: 100px;
+  cursor: pointer;
+  accent-color: var(--accent-color);
+}
+
+.sketchpad-actions-right {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.sketch-btn {
+  padding: 8px 16px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.sketch-btn-secondary {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--glass-border);
+  color: var(--text-primary);
+}
+
+.sketch-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.sketch-btn-primary {
+  background: var(--accent-color);
+  color: #fff;
+}
+
+.sketch-btn-primary:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.sketch-btn-danger {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.2);
+  color: #ff6b6b;
+}
+
+.sketch-btn-danger:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* Drawing notification toast/status badge */
+.sketch-badge-notification {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: #f43f5e;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #f43f5e;
+  animation: pulseBadge 1.5s infinite;
+}
+
+@keyframes pulseBadge {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7); }
+  70% { transform: scale(1.2); box-shadow: 0 0 0 6px rgba(244, 63, 94, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+}
+
+.sketching-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #c084fc;
+  margin-top: 4px;
+  font-weight: 500;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.sketching-status-dot {
+  width: 6px;
+  height: 6px;
+  background: #c084fc;
+  border-radius: 50%;
+  animation: pulseDot 1s infinite alternate;
+}
+
+@keyframes pulseDot {
+  from { opacity: 0.3; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Sketchpad mobile responsiveness */
+@media (max-width: 768px) {
+  .sketchpad-modal {
+    padding: 16px;
+    gap: 12px;
+    border-radius: 16px;
+  }
+  
+  .sketchpad-header h3 {
+    font-size: 1.1rem;
+  }
+  
+  .sketchpad-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .sketchpad-tools-left {
+    justify-content: space-between;
+  }
+  
+  .sketchpad-actions-right {
+    justify-content: flex-end;
+  }
+  
+  .sketchpad-canvas-container {
+    border-radius: 8px;
+  }
 }
 

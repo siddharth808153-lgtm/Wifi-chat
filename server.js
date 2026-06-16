@@ -80,6 +80,9 @@ const io = new Server(server, {
 // Connected users cache: socket.id -> { id, nickname, avatar, color }
 const users = new Map();
 
+// Messages storage for edit/delete functionality
+const messages = new Map();
+
 io.on('connection', (socket) => {
   console.log(`🔌 Client connected: ${socket.id}`);
 
@@ -139,6 +142,20 @@ io.on('connection', (socket) => {
   socket.on('send-message', (msgData) => {
     const user = users.get(socket.id);
     if (!user) return;
+    // Detect @mentions in text and map to user socket ids
+    const rawText = msgData.text || '';
+    const mentionRegex = /@([A-Za-z0-9_\-]+)/g;
+    const mentions = [];
+    let match;
+    while ((match = mentionRegex.exec(rawText)) !== null) {
+      const name = match[1];
+      const target = Array.from(users.values()).find(u => u.nickname.toLowerCase() === name.toLowerCase());
+      if (target && !mentions.includes(target.id)) {
+        mentions.push(target.id);
+      }
+    }
+
+    const recipientId = msgData.recipientId;
 
     const fullMessage = {
       id: `msg-${Date.now()}-${Math.random()}`,
@@ -148,30 +165,259 @@ io.on('connection', (socket) => {
         avatar: user.avatar,
         color: user.color
       },
-      text: msgData.text || '',
+      recipientId: recipientId || null,
+      text: rawText,
       type: msgData.type || 'text', // 'text', 'image', 'voice', 'file'
       fileData: msgData.fileData || null, // Base64 content for images/audio/files
       fileName: msgData.fileName || null,
       fileSize: msgData.fileSize || null,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      edited: false,
+      mentions: recipientId ? [] : mentions // no mentions for DMs
     };
 
-    // Broadcast the message to everyone (including sender)
-    io.emit('message', fullMessage);
+    // Store message for edit/delete operations
+    messages.set(fullMessage.id, fullMessage);
+
+    if (recipientId) {
+      // Send only to sender and recipient
+      socket.emit('message', fullMessage);
+      io.to(recipientId).emit('message', fullMessage);
+    } else {
+      // Broadcast the message to everyone (including sender)
+      io.emit('message', fullMessage);
+
+      // Notify mentioned users directly (non-blocking)
+      if (mentions.length > 0) {
+        mentions.forEach((targetId) => {
+          if (targetId !== socket.id) {
+            io.to(targetId).emit('mentioned', {
+              messageId: fullMessage.id,
+              from: user.nickname,
+              text: fullMessage.text,
+              timestamp: fullMessage.timestamp
+            });
+          }
+        });
+      }
+    }
   });
 
-  // Typing Indicators
-  socket.on('typing', (isTyping) => {
+  // Edit Message
+  socket.on('edit-message', (editData) => {
     const user = users.get(socket.id);
     if (!user) return;
 
-    socket.broadcast.emit('user-typing', {
-      id: socket.id,
-      nickname: user.nickname,
-      avatar: user.avatar,
-      color: user.color,
-      isTyping
-    });
+    const message = messages.get(editData.messageId);
+    if (!message) {
+      socket.emit('edit-error', 'Message not found');
+      return;
+    }
+
+    // Only the sender can edit their message
+    if (message.sender.id !== user.id) {
+      socket.emit('edit-error', 'You can only edit your own messages');
+      return;
+    }
+
+    // Update the message
+    message.text = editData.text;
+    message.edited = true;
+    message.editedAt = new Date().toISOString();
+
+    if (message.recipientId) {
+      io.to(message.sender.id).emit('message-edited', {
+        messageId: editData.messageId,
+        text: editData.text,
+        editedAt: message.editedAt
+      });
+      io.to(message.recipientId).emit('message-edited', {
+        messageId: editData.messageId,
+        text: editData.text,
+        editedAt: message.editedAt
+      });
+    } else {
+      // Broadcast the edit to everyone
+      io.emit('message-edited', {
+        messageId: editData.messageId,
+        text: editData.text,
+        editedAt: message.editedAt
+      });
+    }
+  });
+
+  // Delete Message
+  socket.on('delete-message', (deleteData) => {
+    const user = users.get(socket.id);
+    if (!user) return;
+
+    const message = messages.get(deleteData.messageId);
+    if (!message) {
+      socket.emit('delete-error', 'Message not found');
+      return;
+    }
+
+    // Only the sender can delete their message
+    if (message.sender.id !== user.id) {
+      socket.emit('delete-error', 'You can only delete your own messages');
+      return;
+    }
+
+    const recipientId = message.recipientId;
+
+    // Delete the message
+    messages.delete(deleteData.messageId);
+
+    if (recipientId) {
+      io.to(message.sender.id).emit('message-deleted', {
+        messageId: deleteData.messageId
+      });
+      io.to(recipientId).emit('message-deleted', {
+        messageId: deleteData.messageId
+      });
+    } else {
+      // Broadcast the deletion to everyone
+      io.emit('message-deleted', {
+        messageId: deleteData.messageId
+      });
+    }
+  });
+
+  // Add/Remove Reaction to Message
+  socket.on('toggle-reaction', (reactionData) => {
+    const user = users.get(socket.id);
+    if (!user) return;
+
+    const message = messages.get(reactionData.messageId);
+    if (!message) {
+      socket.emit('reaction-error', 'Message not found');
+      return;
+    }
+
+    // Initialize reactions object if it doesn't exist
+    if (!message.reactions) {
+      message.reactions = {};
+    }
+
+    const emoji = reactionData.emoji;
+    if (!message.reactions[emoji]) {
+      message.reactions[emoji] = [];
+    }
+
+    // Check if user already reacted with this emoji
+    const userReacted = message.reactions[emoji].includes(user.id);
+
+    if (userReacted) {
+      // Remove reaction
+      message.reactions[emoji] = message.reactions[emoji].filter(id => id !== user.id);
+      if (message.reactions[emoji].length === 0) {
+        delete message.reactions[emoji];
+      }
+    } else {
+      // Add reaction
+      message.reactions[emoji].push(user.id);
+    }
+
+    if (message.recipientId) {
+      io.to(message.sender.id).emit('message-reaction-updated', {
+        messageId: reactionData.messageId,
+        reactions: message.reactions
+      });
+      io.to(message.recipientId).emit('message-reaction-updated', {
+        messageId: reactionData.messageId,
+        reactions: message.reactions
+      });
+    } else {
+      // Broadcast the reaction update to everyone
+      io.emit('message-reaction-updated', {
+        messageId: reactionData.messageId,
+        reactions: message.reactions
+      });
+    }
+  });
+
+  // Typing Indicators
+  socket.on('typing', (data) => {
+    const user = users.get(socket.id);
+    if (!user) return;
+
+    let isTyping = false;
+    let recipientId = null;
+
+    if (data && typeof data === 'object') {
+      isTyping = !!data.isTyping;
+      recipientId = data.recipientId || null;
+    } else {
+      isTyping = !!data;
+    }
+
+    if (recipientId) {
+      // Send typing status to private recipient only
+      io.to(recipientId).emit('user-typing', {
+        id: socket.id,
+        nickname: user.nickname,
+        avatar: user.avatar,
+        color: user.color,
+        isTyping,
+        recipientId
+      });
+    } else {
+      // Broadcast typing status to everyone else
+      socket.broadcast.emit('user-typing', {
+        id: socket.id,
+        nickname: user.nickname,
+        avatar: user.avatar,
+        color: user.color,
+        isTyping,
+        recipientId: null
+      });
+    }
+  });
+
+  // Collaborative Sketchpad Sync
+  socket.on('drawing-stroke', (drawData) => {
+    const recipientId = drawData.recipientId;
+    if (recipientId) {
+      io.to(recipientId).emit('drawing-stroke', drawData);
+    } else {
+      socket.broadcast.emit('drawing-stroke', drawData);
+    }
+  });
+
+  socket.on('drawing-clear', (clearData) => {
+    const recipientId = clearData.recipientId;
+    if (recipientId) {
+      io.to(recipientId).emit('drawing-clear', clearData);
+    } else {
+      socket.broadcast.emit('drawing-clear', clearData);
+    }
+  });
+
+  socket.on('drawing-activity', (activityData) => {
+    const recipientId = activityData.recipientId;
+    if (recipientId) {
+      io.to(recipientId).emit('drawing-activity', activityData);
+    } else {
+      socket.broadcast.emit('drawing-activity', activityData);
+    }
+  });
+
+  socket.on('request-canvas-state', (requestData) => {
+    const recipientId = requestData.recipientId;
+    if (recipientId) {
+      io.to(recipientId).emit('request-canvas-state', requestData);
+    } else {
+      socket.broadcast.emit('request-canvas-state', requestData);
+    }
+  });
+
+  socket.on('send-canvas-state', (stateData) => {
+    const recipientId = stateData.recipientId;
+    if (recipientId) {
+      io.to(recipientId).emit('send-canvas-state', stateData);
+    } else {
+      socket.broadcast.emit('send-canvas-state', stateData);
+    }
   });
 
   // Leave Chat Room (returns to lobby)
