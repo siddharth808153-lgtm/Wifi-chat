@@ -3,7 +3,9 @@ import { io } from 'socket.io-client';
 import { 
   Send, Image, Mic, Paperclip, Smile, Users, QrCode, 
   Wifi, WifiOff, LogOut, Palette, Trash2, Play, Pause, 
-  X, CheckCheck, Square, Download, FileText, Sparkles, Lock, Paintbrush
+  X, CheckCheck, Square, Download, FileText, Sparkles, Lock, Paintbrush,
+  CornerUpLeft, Pin, PinOff, Bell, BellOff, Plus, Hash, Check,
+  BarChart2, Gamepad2, Trophy, RotateCcw, HelpCircle
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -511,9 +513,179 @@ function App() {
   const [showQR, setShowQR] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
   
-  // DM/Channel States
+  // Channels and DM States
+  const [channels, setChannels] = useState([
+    { id: 'general', name: 'general', icon: '🌐', description: 'General community discussion' },
+    { id: 'gaming', name: 'gaming', icon: '🎮', description: 'Gaming, anime & banter' },
+    { id: 'music', name: 'music', icon: '🎵', description: 'Music recommendations & jams' },
+    { id: 'memes', name: 'memes', icon: '🔥', description: 'Memes, clips & media' }
+  ]);
   const [activeChatId, setActiveChatId] = useState('general');
   const [unreadCounts, setUnreadCounts] = useState({});
+  const [showAddChannel, setShowAddChannel] = useState(false);
+  const [newChannelName, setNewChannelName] = useState('');
+
+  // Pinned Messages: chatKey -> message object
+  const [pinnedMessages, setPinnedMessages] = useState({});
+
+  // Message Reply State
+  const [replyingTo, setReplyingTo] = useState(null);
+
+  // Desktop Notifications Permission State
+  const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
+    return 'Notification' in window && Notification.permission === 'granted';
+  });
+
+  // Keep a ref of activeChatId for socket listeners
+  const activeChatIdRef = useRef(activeChatId);
+  useEffect(() => {
+    activeChatIdRef.current = activeChatId;
+  }, [activeChatId]);
+
+  // Is current active chat a channel
+  const isChannel = channels.some(c => c.id === activeChatId) || activeChatId === 'general';
+
+  // Get unique chat key for pinned messages
+  const getActiveChatKey = () => {
+    if (isChannel) return `channel:${activeChatId}`;
+    const ids = [socket?.id, activeChatId].sort();
+    return `dm:${ids[0]}_${ids[1]}`;
+  };
+
+  // Jump to quoted or pinned message and flash highlight
+  const scrollToMessage = (msgId) => {
+    const elem = document.getElementById(`msg-${msgId}`);
+    if (elem) {
+      elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      elem.classList.remove('highlight-jump');
+      void elem.offsetWidth; // trigger reflow
+      elem.classList.add('highlight-jump');
+      setTimeout(() => elem.classList.remove('highlight-jump'), 2000);
+    }
+  };
+
+  // Request browser notification permissions
+  const requestNotifications = async () => {
+    if (!('Notification' in window)) {
+      alert('Browser desktop notifications are not supported by this browser.');
+      return;
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      setNotificationsEnabled(permission === 'granted');
+    } catch (e) {
+      console.warn('Error requesting notification permission:', e);
+    }
+  };
+
+  // Pin a message to the active chat
+  const handlePinMessage = (messageId) => {
+    if (!socket) return;
+    const chatKey = getActiveChatKey();
+    socket.emit('pin-message', { chatKey, messageId });
+  };
+
+  // Unpin the message from the active chat
+  const handleUnpinMessage = () => {
+    if (!socket) return;
+    const chatKey = getActiveChatKey();
+    socket.emit('unpin-message', { chatKey });
+  };
+
+  // Create a new channel
+  const handleCreateChannel = (e) => {
+    e.preventDefault();
+    const clean = newChannelName.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+    if (!clean || !socket) return;
+    socket.emit('create-channel', { name: clean });
+    setNewChannelName('');
+    setShowAddChannel(false);
+    setActiveChatId(clean);
+  };
+
+  // ==========================================================================
+  // PHASE 2: POLLS & MINI-GAMES STATES AND HANDLERS
+  // ==========================================================================
+  const [showPollModal, setShowPollModal] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState(['', '']);
+
+  // Handle Poll Creation
+  const handleCreatePoll = (e) => {
+    e.preventDefault();
+    if (!pollQuestion.trim() || !socket) return;
+    const validOpts = pollOptions.map(o => o.trim()).filter(o => o.length > 0);
+    if (validOpts.length < 2) {
+      alert('Please provide at least 2 options for your poll.');
+      return;
+    }
+
+    socket.emit('create-poll', {
+      question: pollQuestion.trim(),
+      options: validOpts,
+      channelId: isChannel ? activeChatId : null,
+      recipientId: isChannel ? null : activeChatId
+    });
+
+    setPollQuestion('');
+    setPollOptions(['', '']);
+    setShowPollModal(false);
+  };
+
+  // Handle Poll Voting
+  const handleVotePoll = (messageId, optionIndex) => {
+    if (!socket) return;
+    socket.emit('vote-poll', { messageId, optionIndex });
+  };
+
+  // Mini-Games State
+  const [showGameMenu, setShowGameMenu] = useState(false);
+  const [scrambleGuesses, setScrambleGuesses] = useState({});
+
+  // Launch Tic-Tac-Toe
+  const handleStartTicTacToe = () => {
+    if (!socket) return;
+    socket.emit('create-tictactoe', {
+      channelId: isChannel ? activeChatId : null,
+      recipientId: isChannel ? null : activeChatId
+    });
+  };
+
+  // Join Tic-Tac-Toe as Player O
+  const handleJoinTicTacToe = (messageId) => {
+    if (!socket) return;
+    socket.emit('tictactoe-join', { messageId });
+  };
+
+  // Make move in Tic-Tac-Toe
+  const handleMoveTicTacToe = (messageId, cellIndex) => {
+    if (!socket) return;
+    socket.emit('tictactoe-move', { messageId, cellIndex });
+  };
+
+  // Reset / Rematch Tic-Tac-Toe
+  const handleResetTicTacToe = (messageId) => {
+    if (!socket) return;
+    socket.emit('tictactoe-reset', { messageId });
+  };
+
+  // Launch Word Scramble
+  const handleStartWordScramble = () => {
+    if (!socket) return;
+    socket.emit('create-wordscramble', {
+      channelId: isChannel ? activeChatId : null,
+      recipientId: isChannel ? null : activeChatId
+    });
+  };
+
+  // Submit Guess for Word Scramble
+  const handleGuessWordScramble = (messageId) => {
+    if (!socket) return;
+    const guess = (scrambleGuesses[messageId] || '').trim();
+    if (!guess) return;
+    socket.emit('wordscramble-guess', { messageId, guess });
+    setScrambleGuesses(prev => ({ ...prev, [messageId]: '' }));
+  };
   
   // Sketchpad States
   const [showSketchpad, setShowSketchpad] = useState(false);
@@ -532,7 +704,7 @@ function App() {
   // Derived state: Is another user currently drawing in the active room/DM
   const isSomeoneSketching = Object.entries(sketchpadActiveUsers).some(([id, details]) => {
     if (id === socket?.id) return false;
-    if (activeChatId === 'general') {
+    if (isChannel) {
       return !details.recipientId;
     } else {
       return details.recipientId === socket?.id && id === activeChatId;
@@ -546,7 +718,8 @@ function App() {
       text: '🎨 Shared a sketch',
       fileData: dataUrl,
       fileName: `sketch-${Date.now()}.png`,
-      recipientId: activeChatId === 'general' ? null : activeChatId
+      channelId: isChannel ? activeChatId : null,
+      recipientId: isChannel ? null : activeChatId
     });
     setShowSketchpad(false);
   };
@@ -609,42 +782,103 @@ function App() {
     socketInstance.on('users-update', (users) => {
       setOnlineUsers(users);
       setActiveChatId((currentActive) => {
-        if (currentActive !== 'general' && !users.some(u => u.id === currentActive)) {
+        const isCurrentChannel = channels.some(c => c.id === currentActive) || currentActive === 'general';
+        if (!isCurrentChannel && !users.some(u => u.id === currentActive)) {
           return 'general';
         }
         return currentActive;
       });
     });
 
+    socketInstance.on('channels-update', (updatedChannels) => {
+      setChannels(updatedChannels);
+    });
+
+    socketInstance.on('pinned-messages-sync', (syncMap) => {
+      setPinnedMessages(syncMap || {});
+    });
+
+    socketInstance.on('pinned-message-updated', ({ chatKey, pinnedMessage }) => {
+      setPinnedMessages((prev) => ({
+        ...prev,
+        [chatKey]: pinnedMessage
+      }));
+    });
+
+    socketInstance.on('messages-read', ({ readerId }) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.recipientId === readerId ? { ...m, read: true } : m
+        )
+      );
+    });
+
     socketInstance.on('message', (msg) => {
       setMessages((prev) => [...prev, msg]);
       
-      // Handle unread counts for private messages
+      const currentActive = activeChatIdRef.current;
+
+      // Handle unread counts and read receipts
       if (msg.recipientId && msg.sender && msg.sender.id !== socketInstance.id) {
         const senderId = msg.sender.id;
-        setActiveChatId((currentActive) => {
-          if (currentActive !== senderId) {
-            setUnreadCounts((prev) => ({
-              ...prev,
-              [senderId]: (prev[senderId] || 0) + 1
-            }));
-          }
-          return currentActive;
-        });
+        if (currentActive === senderId) {
+          socketInstance.emit('mark-read', { senderId });
+        } else {
+          setUnreadCounts((prev) => ({
+            ...prev,
+            [senderId]: (prev[senderId] || 0) + 1
+          }));
+        }
+      } else if (msg.channelId && !msg.recipientId && msg.sender && msg.sender.id !== socketInstance.id) {
+        const chId = msg.channelId;
+        if (currentActive !== chId) {
+          setUnreadCounts((prev) => ({
+            ...prev,
+            [chId]: (prev[chId] || 0) + 1
+          }));
+        }
       }
 
+      // Play audio notification
       if (msg.sender && msg.sender.id !== socketInstance.id && !msg.isSystem) {
         playReceiveSound();
       }
+
+      // Browser Push Notification (when window is in background / hidden)
+      if (document.hidden && 'Notification' in window && Notification.permission === 'granted' && msg.sender?.id !== socketInstance.id && !msg.isSystem) {
+        try {
+          if (msg.recipientId) {
+            const notif = new Notification(`💬 DM from ${msg.sender.nickname}`, {
+              body: msg.text || (msg.replyTo ? 'Replied to a message' : 'Sent an attachment'),
+              icon: msg.sender.avatar || '/avatars/goku.png'
+            });
+            notif.onclick = () => {
+              window.focus();
+              handleSelectChat(msg.sender.id);
+            };
+          } else if (msg.mentions && msg.mentions.includes(socketInstance.id)) {
+            const notif = new Notification(`🔔 @${msg.sender.nickname} mentioned you in #${msg.channelId || 'general'}`, {
+              body: msg.text,
+              icon: msg.sender.avatar || '/avatars/goku.png'
+            });
+            notif.onclick = () => {
+              window.focus();
+              handleSelectChat(msg.channelId || 'general');
+            };
+          }
+        } catch (e) {
+          console.warn('Failed to dispatch notification', e);
+        }
+      }
     });
 
-    socketInstance.on('user-typing', ({ id, nickname: userNick, avatar, color, isTyping: isUserTyping, recipientId }) => {
+    socketInstance.on('user-typing', ({ id, nickname: userNick, avatar, color, isTyping: isUserTyping, recipientId, channelId }) => {
       setTypingUsers((prev) => {
         if (isUserTyping) {
           if (prev.some(u => u.id === id)) {
-            return prev.map(u => u.id === id ? { id, nickname: userNick, avatar, color, recipientId } : u);
+            return prev.map(u => u.id === id ? { id, nickname: userNick, avatar, color, recipientId, channelId } : u);
           }
-          return [...prev, { id, nickname: userNick, avatar, color, recipientId }];
+          return [...prev, { id, nickname: userNick, avatar, color, recipientId, channelId }];
         } else {
           return prev.filter(u => u.id !== id);
         }
@@ -710,6 +944,37 @@ function App() {
       );
     });
 
+    // Handle Poll Updates
+    socketInstance.on('poll-updated', ({ messageId, options, totalVotes }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, options, totalVotes } : msg
+        )
+      );
+    });
+
+    // Handle Tic-Tac-Toe Updates
+    socketInstance.on('tictactoe-updated', ({ messageId, gameState }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, gameState } : msg
+        )
+      );
+    });
+
+    // Handle Word Scramble Updates
+    socketInstance.on('wordscramble-updated', ({ messageId, gameState }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, gameState } : msg
+        )
+      );
+    });
+
+    socketInstance.on('wordscramble-wrong', ({ messageId, attempts }) => {
+      alert(`❌ That guess is incorrect! (Attempt #${attempts}) - Try again!`);
+    });
+
     // Collaborative drawing socket listeners
     socketInstance.on('drawing-stroke', (drawData) => {
       window.dispatchEvent(new CustomEvent('remote-drawing-stroke', { detail: drawData }));
@@ -746,19 +1011,25 @@ function App() {
 
   const handleSelectChat = (chatId) => {
     setActiveChatId(chatId);
-    if (chatId !== 'general') {
-      setUnreadCounts((prev) => {
-        const next = { ...prev };
-        delete next[chatId];
-        return next;
-      });
+    setUnreadCounts((prev) => {
+      const next = { ...prev };
+      delete next[chatId];
+      return next;
+    });
+
+    // If opening a DM, mark their messages to me as read
+    const isTargetChannel = channels.some(c => c.id === chatId) || chatId === 'general';
+    if (!isTargetChannel && socket) {
+      socket.emit('mark-read', { senderId: chatId });
     }
   };
 
   const getConversationMessages = () => {
     return messages.filter((msg) => {
-      if (activeChatId === 'general') {
-        return !msg.recipientId;
+      if (isChannel) {
+        if (msg.recipientId) return false;
+        const msgChan = msg.channelId || 'general';
+        return msgChan === activeChatId;
       } else {
         if (msg.isSystem) return false;
         const myId = socket?.id;
@@ -916,16 +1187,25 @@ function App() {
     socket.emit('send-message', {
       type: 'text',
       text: inputText,
-      recipientId: activeChatId === 'general' ? null : activeChatId
+      channelId: isChannel ? activeChatId : null,
+      recipientId: isChannel ? null : activeChatId,
+      replyTo: replyingTo ? {
+        id: replyingTo.id,
+        senderNickname: replyingTo.sender.nickname,
+        text: replyingTo.text,
+        type: replyingTo.type
+      } : null
     });
 
     setInputText('');
+    setReplyingTo(null);
     
     // Trigger typing stop immediately
     if (isTyping) {
       socket.emit('typing', {
         isTyping: false,
-        recipientId: activeChatId === 'general' ? null : activeChatId
+        channelId: isChannel ? activeChatId : null,
+        recipientId: isChannel ? null : activeChatId
       });
       setIsTyping(false);
     }
@@ -1002,7 +1282,8 @@ function App() {
     if (!isTyping) {
       socket.emit('typing', {
         isTyping: true,
-        recipientId: activeChatId === 'general' ? null : activeChatId
+        channelId: isChannel ? activeChatId : null,
+        recipientId: isChannel ? null : activeChatId
       });
       setIsTyping(true);
     }
@@ -1014,7 +1295,8 @@ function App() {
     typingTimeoutRef.current = setTimeout(() => {
       socket.emit('typing', {
         isTyping: false,
-        recipientId: activeChatId === 'general' ? null : activeChatId
+        channelId: isChannel ? activeChatId : null,
+        recipientId: isChannel ? null : activeChatId
       });
       setIsTyping(false);
     }, 1500);
@@ -1058,7 +1340,8 @@ function App() {
           text: `Sent an image: ${file.name}`,
           fileData: dataUrl,
           fileName: file.name,
-          recipientId: activeChatId === 'general' ? null : activeChatId
+          channelId: isChannel ? activeChatId : null,
+          recipientId: isChannel ? null : activeChatId
         });
       };
       img.src = event.target.result;
@@ -1084,7 +1367,8 @@ function App() {
         fileData: event.target.result,
         fileName: file.name,
         fileSize: file.size,
-        recipientId: activeChatId === 'general' ? null : activeChatId
+        channelId: isChannel ? activeChatId : null,
+        recipientId: isChannel ? null : activeChatId
       });
     };
     reader.readAsDataURL(file);
@@ -1113,7 +1397,8 @@ function App() {
             text: 'Voice note',
             fileData: event.target.result,
             fileName: 'voice-note.webm',
-            recipientId: activeChatId === 'general' ? null : activeChatId
+            channelId: isChannel ? activeChatId : null,
+            recipientId: isChannel ? null : activeChatId
           });
         };
         reader.readAsDataURL(audioBlob);
@@ -1271,11 +1556,19 @@ function App() {
             <button className={`theme-btn ${theme === 'glass-blue' ? 'active' : ''}`} onClick={() => changeTheme('glass-blue')}>Ocean</button>
             <button className={`theme-btn ${theme === 'glass-purple' ? 'active' : ''}`} onClick={() => changeTheme('glass-purple')}>Cosmic</button>
             <button className={`theme-btn ${theme === 'glass-sunset' ? 'active' : ''}`} onClick={() => changeTheme('glass-sunset')}>Sunset</button>
+            <button className={`theme-btn ${theme === 'glass-cyberpunk' ? 'active' : ''}`} onClick={() => changeTheme('glass-cyberpunk')}>Cyberpunk</button>
+            <button className={`theme-btn ${theme === 'glass-sakura' ? 'active' : ''}`} onClick={() => changeTheme('glass-sakura')}>Sakura</button>
+            <button className={`theme-btn ${theme === 'glass-emerald' ? 'active' : ''}`} onClick={() => changeTheme('glass-emerald')}>Emerald</button>
+            <button className={`theme-btn ${theme === 'glass-light' ? 'active' : ''}`} onClick={() => changeTheme('glass-light')}>Light</button>
           </div>
         </div>
       </div>
     );
   }
+
+  // Active channel definition if in a channel
+  const currentChannel = isChannel ? (channels.find(c => c.id === activeChatId) || { id: activeChatId, name: activeChatId, icon: '#', description: 'Chat Room' }) : null;
+  const currentPinnedMessage = pinnedMessages[getActiveChatKey()];
 
   // MAIN CHAT INTERFACE
   return (
@@ -1288,8 +1581,16 @@ function App() {
           <div className="header-left">
             <div className="app-logo">🌊</div>
             <div>
-              {activeChatId === 'general' ? (
-                <h2>Wave Chat</h2>
+              {isChannel ? (
+                <div>
+                  <h2 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '1.1rem', opacity: 0.9 }}>{currentChannel.icon || '#'}</span>
+                    <span>#{currentChannel.name}</span>
+                  </h2>
+                  <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+                    {currentChannel.description || 'Channel conversation'}
+                  </p>
+                </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <button 
@@ -1315,12 +1616,22 @@ function App() {
           </div>
 
           <div className="header-actions">
+            {/* Desktop Notification Permission Bell */}
+            <button 
+              className={`header-btn notification-toggle-btn ${notificationsEnabled ? 'active' : ''}`} 
+              onClick={requestNotifications} 
+              title={notificationsEnabled ? "Desktop Notifications Enabled" : "Enable Desktop Notifications"}
+            >
+              {notificationsEnabled ? <Bell size={18} /> : <BellOff size={18} />}
+              <span className="btn-label">{notificationsEnabled ? "Alerts On" : "Alerts"}</span>
+            </button>
+
             <button 
               className={`header-btn ${showQR ? 'active' : ''}`} 
               onClick={() => setShowQR(!showQR)} 
               title="Share connection URL / QR Code"
             >
-              <QrCode size={20} />
+              <QrCode size={18} />
               <span className="btn-label">Invite Friend</span>
             </button>
 
@@ -1329,7 +1640,7 @@ function App() {
               onClick={handleSaveChat} 
               title="Save Chat Logs"
             >
-              <Download size={20} />
+              <Download size={18} />
               <span className="btn-label">Save Chat</span>
             </button>
 
@@ -1339,8 +1650,8 @@ function App() {
               onClick={handleClearChat} 
               title="Clear Chat (Ctrl+Shift+5)"
             >
-              <Trash2 size={20} />
-              <span className="btn-label">Clear Chat</span>
+              <Trash2 size={18} />
+              <span className="btn-label">Clear</span>
             </button>
 
             <div className="header-theme-selector">
@@ -1349,12 +1660,16 @@ function App() {
                 <option value="glass-dark">Dark Mode</option>
                 <option value="glass-blue">Ocean Wave</option>
                 <option value="glass-purple">Cosmic Purple</option>
-                <option value="glass-sunset">Sunset Glow</option>
+                <option value="glass-sunset">Sunset Velvet</option>
+                <option value="glass-cyberpunk">Neon Cyberpunk</option>
+                <option value="glass-sakura">Sakura Blossom</option>
+                <option value="glass-emerald">Emerald Matrix</option>
+                <option value="glass-light">Frosted Crystal</option>
               </select>
             </div>
 
             <button className="header-btn logout-btn" onClick={handleLogout} title="Leave room">
-              <LogOut size={20} />
+              <LogOut size={18} />
             </button>
           </div>
         </header>
@@ -1386,22 +1701,70 @@ function App() {
 
             <div className="users-panel">
               {/* CHANNELS SECTION */}
-              <div className="panel-header">
-                <Users size={16} />
-                <h3>Channels</h3>
-              </div>
-              <div className="users-list" style={{ marginBottom: '16px' }}>
-                <div 
-                  className={`user-item ${activeChatId === 'general' ? 'active' : ''}`}
-                  onClick={() => handleSelectChat('general')}
-                >
-                  <div className="user-avatar-frame-small" style={{ '--accent-glow': 'var(--accent-color)' }}>
-                    <span className="avatar-emoji-text">🌐</span>
-                  </div>
-                  <span className="user-nickname" style={{ fontWeight: 'bold' }}>
-                    # general
-                  </span>
+              <div className="panel-header channel-header-row">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Hash size={16} />
+                  <h3>Channels</h3>
                 </div>
+                <button 
+                  className="channel-add-btn" 
+                  onClick={() => setShowAddChannel(!showAddChannel)}
+                  title="Create new channel"
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
+
+              {/* Quick Add Channel Input */}
+              {showAddChannel && (
+                <form onSubmit={handleCreateChannel} className="create-channel-box">
+                  <input 
+                    type="text" 
+                    placeholder="channel-name (e.g. anime)" 
+                    value={newChannelName}
+                    onChange={(e) => setNewChannelName(e.target.value)}
+                    className="create-channel-input"
+                    autoFocus
+                  />
+                  <div className="create-channel-actions">
+                    <button 
+                      type="button" 
+                      onClick={() => { setShowAddChannel(false); setNewChannelName(''); }} 
+                      className="channel-action-btn channel-cancel-btn"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      type="submit" 
+                      disabled={!newChannelName.trim()} 
+                      className="channel-action-btn channel-submit-btn"
+                    >
+                      Create
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              <div className="users-list" style={{ marginBottom: '16px' }}>
+                {channels.map((ch) => (
+                  <div 
+                    key={ch.id} 
+                    className={`user-item ${activeChatId === ch.id ? 'active' : ''}`}
+                    onClick={() => handleSelectChat(ch.id)}
+                  >
+                    <div className="user-avatar-frame-small" style={{ '--accent-glow': 'var(--accent-color)' }}>
+                      <span className="channel-tag-icon">{ch.icon || '#'}</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+                      <span className="user-nickname" style={{ fontWeight: '600' }}>
+                        #{ch.name}
+                      </span>
+                    </div>
+                    {unreadCounts[ch.id] > 0 && (
+                      <span className="unread-badge">{unreadCounts[ch.id]}</span>
+                    )}
+                  </div>
+                ))}
               </div>
 
               {/* DIRECT MESSAGES SECTION */}
@@ -1440,6 +1803,37 @@ function App() {
 
           {/* MAIN CHAT AREA */}
           <main className="chat-area">
+            {/* Sticky Pinned Message Banner */}
+            {currentPinnedMessage && (
+              <div className="pinned-banner">
+                <div 
+                  className="pinned-banner-left" 
+                  onClick={() => scrollToMessage(currentPinnedMessage.id)} 
+                  style={{ cursor: 'pointer' }}
+                  title="Click to jump to pinned message"
+                >
+                  <Pin size={16} className="pinned-icon" />
+                  <span className="pinned-author">@{currentPinnedMessage.sender.nickname}:</span>
+                  <span className="pinned-snippet">{currentPinnedMessage.text || `[${currentPinnedMessage.type}]`}</span>
+                </div>
+                <div className="pinned-banner-actions">
+                  <button 
+                    className="pinned-btn" 
+                    onClick={() => scrollToMessage(currentPinnedMessage.id)} 
+                    title="Jump to message"
+                  >
+                    Jump
+                  </button>
+                  <button 
+                    className="pinned-btn pinned-btn-unpin" 
+                    onClick={handleUnpinMessage} 
+                    title="Unpin message"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
             
             {/* Messages Viewport */}
             <div className="messages-viewport">
@@ -1450,24 +1844,24 @@ function App() {
                     <h3>No results found</h3>
                     <p>No messages match "{searchQuery}" in this conversation.</p>
                   </div>
-                ) : activeChatId === 'general' ? (
+                ) : isChannel ? (
                   <div className="chat-placeholder">
-                    <div className="placeholder-art">🌊</div>
-                    <h3>Welcome to WiFi Wave Chat!</h3>
-                    <p>Share the QR code or URL to invite friends on your same WiFi network and start chatting instantly.</p>
+                    <div className="placeholder-art">{currentChannel.icon || '💬'}</div>
+                    <h3>Welcome to #{currentChannel.name}!</h3>
+                    <p>{currentChannel.description || 'Start the conversation or invite friends on your WiFi network.'}</p>
                   </div>
                 ) : (
                   <div className="chat-placeholder">
                     <div className="placeholder-art">🔒</div>
-                    <h3>Secret Chat Room</h3>
-                    <p>This conversation is private and encrypted between you and {onlineUsers.find(u => u.id === activeChatId)?.nickname || 'your friend'}.</p>
+                    <h3>Direct Message</h3>
+                    <p>This conversation is private between you and {onlineUsers.find(u => u.id === activeChatId)?.nickname || 'your friend'}.</p>
                   </div>
                 )
               ) : (
                 filteredMessages.map((msg) => {
                   if (msg.isSystem) {
                     return (
-                      <div key={msg.id} className="message-system">
+                      <div key={msg.id} id={`msg-${msg.id}`} className="message-system">
                         <span>{msg.text}</span>
                       </div>
                     );
@@ -1476,7 +1870,7 @@ function App() {
                   const isMe = msg.sender.id === socket?.id;
 
                   return (
-                    <div key={msg.id} className={`message-row ${isMe ? 'message-me' : 'message-other'}`}>
+                    <div key={msg.id} id={`msg-${msg.id}`} className={`message-row ${isMe ? 'message-me' : 'message-other'}`}>
                       {!isMe && (
                         <div className="msg-avatar-frame" style={{ '--accent-glow': msg.sender.color }}>
                           {renderAvatar(msg.sender.avatar, msg.sender.nickname, 'msg-avatar-img')}
@@ -1494,6 +1888,17 @@ function App() {
                           className="message-bubble"
                           style={isMe ? { '--bubble-accent': selectedColor } : { '--bubble-accent': msg.sender.color }}
                         >
+                          {/* Quoted Message Snippet */}
+                          {msg.replyTo && (
+                            <div 
+                              className="msg-reply-quote" 
+                              onClick={() => scrollToMessage(msg.replyTo.id)}
+                              title="Click to jump to quoted message"
+                            >
+                              <span className="quote-sender">@{msg.replyTo.senderNickname}</span>
+                              <span className="quote-snippet">{msg.replyTo.text || `[${msg.replyTo.type}]`}</span>
+                            </div>
+                          )}
                           {/* Edit Mode */}
                           {editingMessageId === msg.id && msg.type === 'text' ? (
                             <div className="edit-message-form">
@@ -1591,11 +1996,234 @@ function App() {
                             </div>
                           )}
 
+                          {/* Poll Component */}
+                          {msg.type === 'poll' && (
+                            <div className="poll-card">
+                              <div className="poll-header">
+                                <BarChart2 size={20} className="poll-icon" />
+                                <span className="poll-question">{msg.question}</span>
+                              </div>
+
+                              <div className="poll-options-list">
+                                {msg.options.map((opt, idx) => {
+                                  const hasVoted = opt.votes && opt.votes.includes(socket?.id);
+                                  const count = opt.votes ? opt.votes.length : 0;
+                                  const total = msg.totalVotes || 0;
+                                  const percent = total > 0 ? Math.round((count / total) * 100) : 0;
+
+                                  return (
+                                    <button
+                                      key={idx}
+                                      type="button"
+                                      className={`poll-option-btn ${hasVoted ? 'user-voted' : ''}`}
+                                      onClick={() => handleVotePoll(msg.id, idx)}
+                                      title={hasVoted ? "Click to remove your vote" : "Click to vote for this option"}
+                                    >
+                                      <div 
+                                        className="poll-fill-bar" 
+                                        style={{ width: `${percent}%` }}
+                                      />
+                                      <div className="poll-option-inner">
+                                        <span className="poll-option-text">
+                                          {hasVoted && <Check size={14} className="poll-voted-check" />}
+                                          {opt.text}
+                                        </span>
+                                        <span className="poll-option-stats">
+                                          {percent}% ({count})
+                                        </span>
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              <div className="poll-footer">
+                                <span>{msg.totalVotes || 0} total vote{(msg.totalVotes || 0) === 1 ? '' : 's'}</span>
+                                <span>Tap an option to vote / unvote</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Tic-Tac-Toe Game Component */}
+                          {msg.type === 'game-tictactoe' && msg.gameState && (
+                            <div className="ttt-card">
+                              <div className="ttt-header">
+                                <div className="ttt-title">
+                                  <Gamepad2 size={18} />
+                                  <span>Tic-Tac-Toe</span>
+                                </div>
+                                <div className="ttt-vs-bar">
+                                  <div className={`ttt-player-slot ${msg.gameState.currentTurn === 'X' && msg.gameState.status === 'playing' ? 'active-turn' : ''}`}>
+                                    <span className="ttt-mark-x">X:</span>
+                                    <span>{msg.gameState.playerX.nickname}</span>
+                                  </div>
+                                  <span>vs</span>
+                                  <div className={`ttt-player-slot ${msg.gameState.currentTurn === 'O' && msg.gameState.status === 'playing' ? 'active-turn' : ''}`}>
+                                    <span className="ttt-mark-o">O:</span>
+                                    <span>{msg.gameState.playerO ? msg.gameState.playerO.nickname : 'Waiting...'}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* 3x3 Grid */}
+                              <div className="ttt-grid">
+                                {msg.gameState.board.map((cell, idx) => {
+                                  const isWinningCell = msg.gameState.winningLine?.includes(idx);
+                                  const isMyTurn = msg.gameState.status === 'playing' && (
+                                    (msg.gameState.currentTurn === 'X' && msg.gameState.playerX.id === socket?.id) ||
+                                    (msg.gameState.currentTurn === 'O' && msg.gameState.playerO?.id === socket?.id)
+                                  );
+
+                                  return (
+                                    <button
+                                      key={idx}
+                                      type="button"
+                                      className={`ttt-cell ${isWinningCell ? 'winning-cell' : ''} ${cell === 'X' ? 'ttt-mark-x' : cell === 'O' ? 'ttt-mark-o' : ''}`}
+                                      disabled={cell !== null || !isMyTurn}
+                                      onClick={() => handleMoveTicTacToe(msg.id, idx)}
+                                    >
+                                      {cell}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Status / Call to Action */}
+                              {msg.gameState.status === 'waiting' && (
+                                <div>
+                                  {msg.gameState.playerX.id !== socket?.id ? (
+                                    <button 
+                                      type="button"
+                                      className="ttt-btn-join"
+                                      onClick={() => handleJoinTicTacToe(msg.id)}
+                                    >
+                                      ⚔️ Join Game as Player O
+                                    </button>
+                                  ) : (
+                                    <div className="ttt-status-banner">
+                                      ⏳ Waiting for someone to join...
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {msg.gameState.status === 'playing' && (
+                                <div className="ttt-status-banner">
+                                  Current Turn: <strong>Player {msg.gameState.currentTurn}</strong> ({msg.gameState.currentTurn === 'X' ? msg.gameState.playerX.nickname : msg.gameState.playerO.nickname})
+                                </div>
+                              )}
+
+                              {msg.gameState.status === 'won' && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                  <div className="ttt-status-banner won">
+                                    🎉 Player {msg.gameState.winner} ({msg.gameState.winner === 'X' ? msg.gameState.playerX.nickname : msg.gameState.playerO.nickname}) won!
+                                  </div>
+                                  {(socket?.id === msg.gameState.playerX.id || socket?.id === msg.gameState.playerO?.id) && (
+                                    <button type="button" className="ttt-btn-reset" onClick={() => handleResetTicTacToe(msg.id)}>
+                                      <RotateCcw size={14} /> Play Rematch
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+
+                              {msg.gameState.status === 'draw' && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                  <div className="ttt-status-banner draw">
+                                    🤝 It's a draw! Well played.
+                                  </div>
+                                  {(socket?.id === msg.gameState.playerX.id || socket?.id === msg.gameState.playerO?.id) && (
+                                    <button type="button" className="ttt-btn-reset" onClick={() => handleResetTicTacToe(msg.id)}>
+                                      <RotateCcw size={14} /> Play Rematch
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Word Scramble Component */}
+                          {msg.type === 'game-wordscramble' && msg.gameState && (
+                            <div className="scramble-card">
+                              <div className="scramble-header">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <Trophy size={16} color="#c084fc" />
+                                  <strong style={{ fontSize: '0.9rem' }}>Word Scramble</strong>
+                                </div>
+                                <span className="scramble-badge">{msg.gameState.category}</span>
+                              </div>
+
+                              {/* Scrambled Letters or Solved Word */}
+                              {msg.gameState.status === 'solved' ? (
+                                <div className="scramble-solved-box">
+                                  🎉 Solved by @{msg.gameState.solvedBy?.nickname}!
+                                  <div style={{ fontSize: '1.2rem', fontWeight: '800', marginTop: '4px', letterSpacing: '2px', color: '#10b981' }}>
+                                    {msg.gameState.revealedWord}
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="scramble-tiles-box">
+                                    {msg.gameState.scrambled.split('').map((letter, i) => (
+                                      <span key={i} className="scramble-letter-tile">{letter}</span>
+                                    ))}
+                                  </div>
+                                  <div className="scramble-hint-box">
+                                    <HelpCircle size={14} />
+                                    <span>Hint: {msg.gameState.hint}</span>
+                                  </div>
+                                  <form 
+                                    className="scramble-input-form"
+                                    onSubmit={(e) => {
+                                      e.preventDefault();
+                                      handleGuessWordScramble(msg.id);
+                                    }}
+                                  >
+                                    <input
+                                      type="text"
+                                      className="scramble-input"
+                                      placeholder="Type your guess..."
+                                      value={scrambleGuesses[msg.id] || ''}
+                                      onChange={(e) => setScrambleGuesses(prev => ({ ...prev, [msg.id]: e.target.value }))}
+                                      autoComplete="off"
+                                    />
+                                    <button type="submit" className="scramble-guess-btn">
+                                      Guess
+                                    </button>
+                                  </form>
+                                </>
+                              )}
+                            </div>
+                          )}
+
                           <div className="msg-metadata">
                             <span className="msg-time">{formatTime(msg.timestamp)}</span>
-                            {isMe && <CheckCheck size={14} className="msg-status-icon" />}
-                            {isMe && msg.type === 'text' && (
-                              <div className="msg-actions">
+                            {isMe && (
+                              !isChannel && msg.recipientId ? (
+                                <CheckCheck 
+                                  size={14} 
+                                  className={`msg-status-icon ${msg.read ? 'read-blue' : 'delivered-gray'}`} 
+                                  title={msg.read ? "Read" : "Delivered"}
+                                />
+                              ) : (
+                                <CheckCheck size={14} className="msg-status-icon" title="Sent" />
+                              )
+                            )}
+                            <div className="msg-actions">
+                              <button
+                                onClick={() => setReplyingTo(msg)}
+                                className="msg-action-btn reply-btn"
+                                title="Reply / Quote"
+                              >
+                                <CornerUpLeft size={12} />
+                              </button>
+                              <button
+                                onClick={() => handlePinMessage(msg.id)}
+                                className="msg-action-btn pin-btn"
+                                title="Pin message"
+                              >
+                                <Pin size={12} />
+                              </button>
+                              {isMe && msg.type === 'text' && (
                                 <button
                                   onClick={() => handleStartEdit(msg.id, msg.text)}
                                   className="msg-action-btn edit-btn"
@@ -1603,6 +2231,8 @@ function App() {
                                 >
                                   ✎
                                 </button>
+                              )}
+                              {isMe && (
                                 <button
                                   onClick={() => handleDeleteMessage(msg.id)}
                                   className="msg-action-btn delete-btn"
@@ -1610,8 +2240,8 @@ function App() {
                                 >
                                   ✕
                                 </button>
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </div>
 
                           {/* Reactions */}
@@ -1666,7 +2296,7 @@ function App() {
             <div className="typing-indicator-dock">
               {/* Other Online Friends */}
               {otherUsers.map((user, index) => {
-                const isUserTyping = typingUsers.some((u) => u.id === user.id && (activeChatId === 'general' ? !u.recipientId : u.recipientId === socket?.id));
+                const isUserTyping = typingUsers.some((u) => u.id === user.id && (isChannel ? (u.channelId === activeChatId && !u.recipientId) : u.recipientId === socket?.id));
                 const playerTag = `${index + 2}P`;
                 return (
                   <div key={user.id} className="typing-avatar-node arcade-node">
@@ -1784,7 +2414,7 @@ function App() {
                     {Object.entries(sketchpadActiveUsers)
                       .filter(([id, details]) => {
                         if (id === socket?.id) return false;
-                        if (activeChatId === 'general') return !details.recipientId;
+                        if (isChannel) return !details.recipientId;
                         return details.recipientId === socket?.id && id === activeChatId;
                       })
                       .map(([id, details]) => details.nickname)
@@ -1793,6 +2423,30 @@ function App() {
                   </span>
                 </div>
               )}
+
+              {/* Reply / Quote Preview Banner */}
+              {replyingTo && (
+                <div className="reply-preview-banner">
+                  <div className="reply-preview-left">
+                    <span className="reply-preview-sender">
+                      <CornerUpLeft size={14} />
+                      Replying to @{replyingTo.sender?.nickname}
+                    </span>
+                    <span className="reply-preview-text">
+                      {replyingTo.text || `[${replyingTo.type}]`}
+                    </span>
+                  </div>
+                  <button 
+                    type="button"
+                    className="reply-cancel-btn" 
+                    onClick={() => setReplyingTo(null)}
+                    title="Cancel reply"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
               {isRecording ? (
                 // Recording Mode
                 <div className="recording-dashboard glass">
@@ -1855,6 +2509,52 @@ function App() {
                       <Paintbrush size={20} />
                       {isSomeoneSketching && <span className="sketch-badge-notification"></span>}
                     </button>
+
+                    {/* Poll Creator Trigger */}
+                    <button 
+                      type="button" 
+                      className={`btn-icon input-tool-btn ${showPollModal ? 'active' : ''}`}
+                      onClick={() => setShowPollModal(true)}
+                      title="Create a Poll"
+                    >
+                      <BarChart2 size={20} />
+                    </button>
+
+                    {/* Mini-Games Launcher Trigger */}
+                    <div style={{ position: 'relative' }}>
+                      <button 
+                        type="button" 
+                        className={`btn-icon input-tool-btn ${showGameMenu ? 'active' : ''}`}
+                        onClick={() => setShowGameMenu(!showGameMenu)}
+                        title="Play Mini-Games"
+                      >
+                        <Gamepad2 size={20} />
+                      </button>
+                      {showGameMenu && (
+                        <div className="game-launcher-popup glass">
+                          <button 
+                            type="button"
+                            className="game-launch-item"
+                            onClick={() => {
+                              handleStartTicTacToe();
+                              setShowGameMenu(false);
+                            }}
+                          >
+                            <Gamepad2 size={16} /> Tic-Tac-Toe
+                          </button>
+                          <button 
+                            type="button"
+                            className="game-launch-item"
+                            onClick={() => {
+                              handleStartWordScramble();
+                              setShowGameMenu(false);
+                            }}
+                          >
+                            <Trophy size={16} /> Word Scramble
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <input
@@ -1913,6 +2613,93 @@ function App() {
           socket={socket}
           activeChatId={activeChatId}
         />
+      )}
+
+      {/* POLL CREATOR MODAL */}
+      {showPollModal && (
+        <div className="modal-overlay" onClick={() => setShowPollModal(false)}>
+          <div className="poll-modal-card glass" onClick={(e) => e.stopPropagation()}>
+            <div className="poll-modal-header">
+              <h3><BarChart2 size={20} /> Create a Poll</h3>
+              <button type="button" className="close-btn" onClick={() => setShowPollModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreatePoll} className="poll-form">
+              <label className="poll-input-label">Question</label>
+              <input
+                type="text"
+                className="poll-text-input"
+                placeholder="Ask something to your friends..."
+                value={pollQuestion}
+                onChange={(e) => setPollQuestion(e.target.value)}
+                required
+                autoFocus
+              />
+
+              <label className="poll-input-label">Options (at least 2)</label>
+              <div className="poll-options-inputs">
+                {pollOptions.map((opt, idx) => (
+                  <div key={idx} className="poll-option-input-row">
+                    <input
+                      type="text"
+                      className="poll-text-input"
+                      style={{ flex: 1 }}
+                      placeholder={`Option ${idx + 1}`}
+                      value={opt}
+                      onChange={(e) => {
+                        const updated = [...pollOptions];
+                        updated[idx] = e.target.value;
+                        setPollOptions(updated);
+                      }}
+                      required
+                    />
+                    {pollOptions.length > 2 && (
+                      <button
+                        type="button"
+                        className="poll-remove-opt-btn"
+                        onClick={() => {
+                          setPollOptions(pollOptions.filter((_, i) => i !== idx));
+                        }}
+                        title="Remove option"
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {pollOptions.length < 6 && (
+                <button
+                  type="button"
+                  className="poll-add-opt-btn"
+                  onClick={() => setPollOptions([...pollOptions, ''])}
+                >
+                  <Plus size={14} /> Add Option
+                </button>
+              )}
+
+              <div className="poll-modal-actions">
+                <button
+                  type="button"
+                  className="btn btn-cancel"
+                  onClick={() => setShowPollModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={!pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2}
+                >
+                  Launch Poll
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

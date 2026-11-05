@@ -110,6 +110,102 @@
   --bubble-other-border: rgba(239, 68, 68, 0.15);
 }
 
+/* 5. Neon Cyberpunk */
+.glass-cyberpunk {
+  --bg-mesh-1: #0a0612;
+  --bg-mesh-2: #16002c;
+  --bg-mesh-3: #002b28;
+  
+  --glass-bg: rgba(14, 10, 24, 0.72);
+  --glass-bg-hover: rgba(28, 16, 48, 0.85);
+  --glass-border: rgba(0, 240, 255, 0.25);
+  --glass-border-focus: rgba(255, 0, 128, 0.55);
+  
+  --text-primary: #f0fdf4;
+  --text-secondary: #00f0ff;
+  --text-muted: #e000ff;
+  
+  --accent-color: #00f0ff;
+  --accent-hover: #ff007f;
+  
+  --bubble-me-bg: rgba(0, 240, 255, 0.2);
+  --bubble-me-border: rgba(0, 240, 255, 0.5);
+  --bubble-other-bg: rgba(24, 12, 38, 0.75);
+  --bubble-other-border: rgba(255, 0, 128, 0.3);
+}
+
+/* 6. Sakura Blossom */
+.glass-sakura {
+  --bg-mesh-1: #1f0d16;
+  --bg-mesh-2: #2e1022;
+  --bg-mesh-3: #421832;
+  
+  --glass-bg: rgba(45, 18, 35, 0.62);
+  --glass-bg-hover: rgba(70, 25, 52, 0.75);
+  --glass-border: rgba(251, 182, 206, 0.25);
+  --glass-border-focus: rgba(244, 114, 182, 0.5);
+  
+  --text-primary: #fff1f2;
+  --text-secondary: #fbcfe8;
+  --text-muted: #f472b6;
+  
+  --accent-color: #f472b6;
+  --accent-hover: #ec4899;
+  
+  --bubble-me-bg: rgba(244, 114, 182, 0.22);
+  --bubble-me-border: rgba(244, 114, 182, 0.45);
+  --bubble-other-bg: rgba(50, 20, 38, 0.7);
+  --bubble-other-border: rgba(251, 182, 206, 0.2);
+}
+
+/* 7. Emerald Matrix */
+.glass-emerald {
+  --bg-mesh-1: #03140c;
+  --bg-mesh-2: #052317;
+  --bg-mesh-3: #0c3823;
+  
+  --glass-bg: rgba(5, 30, 20, 0.65);
+  --glass-bg-hover: rgba(8, 48, 32, 0.78);
+  --glass-border: rgba(52, 211, 153, 0.22);
+  --glass-border-focus: rgba(16, 185, 129, 0.48);
+  
+  --text-primary: #ecfdf5;
+  --text-secondary: #a7f3d0;
+  --text-muted: #34d399;
+  
+  --accent-color: #10b981;
+  --accent-hover: #059669;
+  
+  --bubble-me-bg: rgba(16, 185, 129, 0.22);
+  --bubble-me-border: rgba(16, 185, 129, 0.45);
+  --bubble-other-bg: rgba(6, 35, 24, 0.72);
+  --bubble-other-border: rgba(52, 211, 153, 0.2);
+}
+
+/* 8. Frosted Crystal (Clean Light) */
+.glass-light {
+  --bg-mesh-1: #f1f5f9;
+  --bg-mesh-2: #e2e8f0;
+  --bg-mesh-3: #cbd5e1;
+  
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-bg-hover: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(15, 23, 42, 0.12);
+  --glass-border-focus: rgba(59, 130, 246, 0.4);
+  
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  
+  --accent-color: #2563eb;
+  --accent-hover: #1d4ed8;
+  
+  --bubble-me-bg: rgba(37, 99, 235, 0.15);
+  --bubble-me-border: rgba(37, 99, 235, 0.35);
+  --bubble-other-bg: rgba(255, 255, 255, 0.88);
+  --bubble-other-border: rgba(15, 23, 42, 0.12);
+}
+
 /* CORE BASE STYLES */
 * {
   box-sizing: border-box;
@@ -2463,4 +2559,876 @@ body {
     border-radius: 8px;
   }
 }
+
+/* ==========================================================================
+   PHASE 1 ENHANCEMENTS: CHANNELS, PINNED, REPLIES, READ RECEIPTS, NOTIFICATIONS
+   ========================================================================== */
+
+/* 1. Channel Item Header & Add Button */
+.channel-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+
+.channel-add-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.channel-add-btn:hover {
+  background: var(--accent-color);
+  color: #ffffff;
+  border-color: var(--accent-color);
+  transform: scale(1.05);
+}
+
+.channel-tag-icon {
+  font-size: 0.95rem;
+  opacity: 0.8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Channel modal or quick-add input */
+.create-channel-box {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border-focus);
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: fadeInUp 0.2s ease-out;
+}
+
+.create-channel-input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.create-channel-input:focus {
+  border-color: var(--accent-color);
+}
+
+.create-channel-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.channel-action-btn {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--glass-border);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.channel-submit-btn {
+  background: var(--accent-color);
+  color: #ffffff;
+  border-color: var(--accent-color);
+}
+
+.channel-cancel-btn {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+}
+
+/* 2. Pinned Message Sticky Banner */
+.pinned-banner {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--glass-border);
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.85rem;
+  z-index: 10;
+  animation: fadeInUp 0.25s ease-out;
+}
+
+.pinned-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.pinned-icon {
+  color: #f59e0b;
+  flex-shrink: 0;
+}
+
+.pinned-author {
+  font-weight: 600;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.pinned-snippet {
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pinned-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.pinned-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+}
+
+.pinned-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.pinned-btn-unpin:hover {
+  color: #ef4444;
+}
+
+/* 3. Reply / Quote Preview Banner (above input) */
+.reply-preview-banner {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.85rem;
+  animation: fadeInUp 0.2s ease-out;
+}
+
+.reply-preview-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.reply-preview-sender {
+  font-weight: 600;
+  color: var(--accent-color);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reply-preview-text {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reply-cancel-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: var(--text-secondary);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.reply-cancel-btn:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+/* Quote Box inside Message Bubble */
+.msg-reply-quote {
+  background: rgba(0, 0, 0, 0.22);
+  border-left: 3px solid var(--accent-color);
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.msg-reply-quote:hover {
+  background: rgba(0, 0, 0, 0.35);
+  transform: translateX(2px);
+}
+
+.quote-sender {
+  font-weight: 600;
+  color: var(--accent-color);
+  font-size: 0.78rem;
+}
+
+.quote-snippet {
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 280px;
+}
+
+/* Highlight flashing animation when jumped to message */
+.message-row.highlight-jump {
+  animation: messageFlash 2s ease-out;
+}
+
+@keyframes messageFlash {
+  0% { background: rgba(59, 130, 246, 0.35); }
+  50% { background: rgba(59, 130, 246, 0.15); }
+  100% { background: transparent; }
+}
+
+/* 4. DM Read Receipts (ticks) */
+.msg-status-icon.read-blue {
+  color: #38bdf8 !important;
+  filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.6));
+}
+
+.msg-status-icon.delivered-gray {
+  color: var(--text-muted) !important;
+  opacity: 0.8;
+}
+
+/* 5. Notification Bell Toggle in Header */
+.notification-toggle-btn.active {
+  color: #10b981;
+}
+
+.notification-toggle-btn.blocked {
+  color: #ef4444;
+  opacity: 0.7;
+}
+
+/* Action button icons in messages */
+.msg-action-btn.reply-btn:hover {
+  color: #38bdf8;
+}
+
+.msg-action-btn.pin-btn:hover {
+  color: #f59e0b;
+}
+
+/* ==========================================================================
+   PHASE 2: POLLS & REAL-TIME VOTING STYLES
+   ========================================================================== */
+
+.poll-card {
+  min-width: 280px;
+  max-width: 380px;
+  background: rgba(10, 15, 29, 0.6);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.poll-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.poll-icon {
+  color: var(--accent-color);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.poll-question {
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.poll-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.poll-option-btn {
+  position: relative;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition-fast);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+}
+
+.poll-option-btn:hover {
+  border-color: var(--accent-color);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.poll-option-btn.user-voted {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+}
+
+.poll-fill-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--accent-color);
+  opacity: 0.25;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.poll-option-btn.user-voted .poll-fill-bar {
+  opacity: 0.4;
+}
+
+.poll-option-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+}
+
+.poll-option-text {
+  font-size: 0.88rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.poll-voted-check {
+  color: var(--accent-color);
+  flex-shrink: 0;
+}
+
+.poll-option-stats {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.poll-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 8px;
+}
+
+/* Modal for Poll Creator */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.poll-modal-card {
+  background: var(--bg-mesh-1, #0f172a);
+  border: 1px solid var(--glass-border-focus);
+  border-radius: 16px;
+  padding: 24px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.poll-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.poll-modal-header h3 {
+  font-size: 1.15rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.poll-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.poll-input-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.poll-text-input {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.poll-text-input:focus {
+  border-color: var(--accent-color);
+}
+
+.poll-options-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.poll-option-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.poll-remove-opt-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color var(--transition-fast);
+}
+
+.poll-remove-opt-btn:hover {
+  color: #ef4444;
+}
+
+.poll-add-opt-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed var(--glass-border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  padding: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all var(--transition-fast);
+}
+
+.poll-add-opt-btn:hover {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.poll-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* ==========================================================================
+   PHASE 2: MINI-GAMES (TIC-TAC-TOE & WORD SCRAMBLE)
+   ========================================================================== */
+
+/* Game Launcher Tool Popup */
+.game-launcher-popup {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 120px;
+  background: var(--bg-mesh-1, #0f172a);
+  border: 1px solid var(--glass-border-focus);
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 100;
+  min-width: 170px;
+  animation: fadeInUp 0.2s ease-out;
+}
+
+.game-launch-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition-fast);
+}
+
+.game-launch-item:hover {
+  background: var(--accent-color);
+  color: #ffffff;
+}
+
+/* TIC-TAC-TOE CARD */
+.ttt-card {
+  min-width: 260px;
+  max-width: 320px;
+  background: rgba(12, 16, 30, 0.7);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ttt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 8px;
+}
+
+.ttt-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.ttt-vs-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+}
+
+.ttt-player-slot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all var(--transition-fast);
+}
+
+.ttt-player-slot.active-turn {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+}
+
+.ttt-mark-x {
+  color: #38bdf8;
+  font-weight: 800;
+}
+
+.ttt-mark-o {
+  color: #f43f5e;
+  font-weight: 800;
+}
+
+/* 3x3 Grid */
+.ttt-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.ttt-cell {
+  aspect-ratio: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  font-size: 1.8rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.ttt-cell:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--accent-color);
+  transform: scale(1.02);
+}
+
+.ttt-cell.winning-cell {
+  background: rgba(56, 189, 248, 0.28);
+  border-color: #38bdf8;
+  animation: pulseCell 1s infinite alternate;
+}
+
+@keyframes pulseCell {
+  from { box-shadow: 0 0 4px rgba(56, 189, 248, 0.4); }
+  to { box-shadow: 0 0 16px rgba(56, 189, 248, 0.8); }
+}
+
+.ttt-status-banner {
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+}
+
+.ttt-status-banner.won {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.ttt-status-banner.draw {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+
+.ttt-btn-join {
+  background: #f43f5e;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all var(--transition-fast);
+}
+
+.ttt-btn-join:hover {
+  background: #e11d48;
+  transform: scale(1.02);
+}
+
+.ttt-btn-reset {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all var(--transition-fast);
+}
+
+.ttt-btn-reset:hover {
+  background: var(--accent-color);
+  color: #ffffff;
+  border-color: var(--accent-color);
+}
+
+/* WORD SCRAMBLE CARD */
+.scramble-card {
+  min-width: 270px;
+  max-width: 340px;
+  background: rgba(15, 12, 28, 0.7);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.scramble-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.scramble-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+.scramble-tiles-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 12px 6px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.scramble-letter-tile {
+  width: 32px;
+  height: 38px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border-focus);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #fbcfe8;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.scramble-hint-box {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.scramble-input-form {
+  display: flex;
+  gap: 6px;
+}
+
+.scramble-input {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  outline: none;
+  text-transform: uppercase;
+}
+
+.scramble-input:focus {
+  border-color: #c084fc;
+}
+
+.scramble-guess-btn {
+  background: #9333ea;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.scramble-guess-btn:hover {
+  background: #a855f7;
+}
+
+.scramble-solved-box {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  border-radius: 8px;
+  padding: 8px 12px;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #34d399;
+}
+
 
