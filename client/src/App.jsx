@@ -1579,83 +1579,91 @@ function App() {
         {/* HEADER */}
         <header className="chat-header">
           <div className="header-left">
-            <div className="app-logo">🌊</div>
-            <div>
-              {isChannel ? (
-                <div>
-                  <h2 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '1.1rem', opacity: 0.9 }}>{currentChannel.icon || '#'}</span>
-                    <span>#{currentChannel.name}</span>
-                  </h2>
-                  <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+            {isChannel ? (
+              <div className="header-channel-meta">
+                <div className="channel-icon-badge">
+                  <Hash size={18} />
+                </div>
+                <div className="channel-title-group">
+                  <div className="channel-name-row">
+                    <h2>{currentChannel.name}</h2>
+                    <span className="channel-online-pill">
+                      <span className="live-dot"></span>
+                      {onlineUsers.length} online
+                    </span>
+                  </div>
+                  <p className="channel-topic-text">
                     {currentChannel.description || 'Channel conversation'}
                   </p>
                 </div>
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <button 
-                    onClick={() => handleSelectChat('general')}
-                    className="theme-btn"
-                    style={{ padding: '2px 8px', fontSize: '0.8rem', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '6px', border: '1px solid var(--glass-border)', cursor: 'pointer' }}
-                  >
-                    ← Back
-                  </button>
-                  <h2 style={{ fontSize: '1.1rem' }}>
-                    DM with {onlineUsers.find(u => u.id === activeChatId)?.nickname || 'Friend'}
-                  </h2>
-                </div>
-              )}
-              <div className="status-indicator">
-                {connected ? (
-                  <span className="online-badge"><Wifi size={12} /> Connected to WiFi Server</span>
-                ) : (
-                  <span className="offline-badge"><WifiOff size={12} /> Connecting...</span>
-                )}
               </div>
-            </div>
+            ) : (
+              <div className="header-dm-meta">
+                <button 
+                  onClick={() => handleSelectChat('general')}
+                  className="header-back-btn"
+                  title="Back to general"
+                >
+                  ←
+                </button>
+                <div className="dm-avatar-wrapper" style={{ '--accent-glow': onlineUsers.find(u => u.id === activeChatId)?.color || 'var(--accent-color)' }}>
+                  {renderAvatar(
+                    onlineUsers.find(u => u.id === activeChatId)?.avatar, 
+                    onlineUsers.find(u => u.id === activeChatId)?.nickname, 
+                    'header-dm-avatar-img'
+                  )}
+                  <span className="live-dot-pip"></span>
+                </div>
+                <div className="dm-title-group">
+                  <h2>{onlineUsers.find(u => u.id === activeChatId)?.nickname || 'Friend'}</h2>
+                  <span className="dm-status-text">Direct Message • Active now</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="header-actions">
-            {/* Desktop Notification Permission Bell */}
+            {/* Desktop Notification Bell Toggle */}
             <button 
-              className={`header-btn notification-toggle-btn ${notificationsEnabled ? 'active' : ''}`} 
+              className={`header-action-icon-btn ${notificationsEnabled ? 'active' : ''}`} 
               onClick={requestNotifications} 
-              title={notificationsEnabled ? "Desktop Notifications Enabled" : "Enable Desktop Notifications"}
+              title={notificationsEnabled ? "Desktop Notifications: Active" : "Enable Desktop Notifications"}
             >
               {notificationsEnabled ? <Bell size={18} /> : <BellOff size={18} />}
-              <span className="btn-label">{notificationsEnabled ? "Alerts On" : "Alerts"}</span>
+              {notificationsEnabled && <span className="active-dot-indicator"></span>}
             </button>
 
+            {/* Invite Friend QR */}
             <button 
-              className={`header-btn ${showQR ? 'active' : ''}`} 
+              className={`header-action-icon-btn ${showQR ? 'active' : ''}`} 
               onClick={() => setShowQR(!showQR)} 
-              title="Share connection URL / QR Code"
+              title="Invite Friends / QR Code"
             >
               <QrCode size={18} />
-              <span className="btn-label">Invite Friend</span>
             </button>
 
+            {/* Save Chat Logs */}
             <button 
-              className="header-btn" 
+              className="header-action-icon-btn" 
               onClick={handleSaveChat} 
-              title="Save Chat Logs"
+              title="Save Chat Logs (.txt)"
             >
               <Download size={18} />
-              <span className="btn-label">Save Chat</span>
             </button>
 
+            {/* Clear Chat */}
             <button 
               id="clear-chat-btn"
-              className="header-btn clear-btn" 
+              className="header-action-icon-btn danger-hover" 
               onClick={handleClearChat} 
-              title="Clear Chat (Ctrl+Shift+5)"
+              title="Clear Local History (Ctrl+Shift+5)"
             >
               <Trash2 size={18} />
-              <span className="btn-label">Clear</span>
             </button>
 
-            <div className="header-theme-selector">
-              <Palette size={18} />
+            {/* Theme Selector Pill */}
+            <div className="header-theme-pill">
+              <Palette size={16} className="theme-palette-icon" />
               <select value={theme} onChange={(e) => changeTheme(e.target.value)}>
                 <option value="glass-dark">Dark Mode</option>
                 <option value="glass-blue">Ocean Wave</option>
@@ -1664,21 +1672,29 @@ function App() {
                 <option value="glass-cyberpunk">Neon Cyberpunk</option>
                 <option value="glass-sakura">Sakura Blossom</option>
                 <option value="glass-emerald">Emerald Matrix</option>
-                <option value="glass-light">Frosted Crystal</option>
+                <option value="glass-light">Frosted Light</option>
               </select>
             </div>
-
-            <button className="header-btn logout-btn" onClick={handleLogout} title="Leave room">
-              <LogOut size={18} />
-            </button>
           </div>
         </header>
 
         {/* WORKSPACE */}
         <div className="chat-workspace">
           
-          {/* SIDEBAR: Online Users & Invite */}
+          {/* SIDEBAR: Channels, DMs & Current User */}
           <aside className="chat-sidebar">
+            {/* Top Brand Banner */}
+            <div className="sidebar-brand-banner">
+              <div className="sidebar-brand-logo">🌊</div>
+              <div className="sidebar-brand-info">
+                <h3>WiFi Wave</h3>
+                <span className="wifi-status-indicator">
+                  <span className="wifi-live-pip"></span>
+                  {connected ? 'Local WiFi Live' : 'Connecting...'}
+                </span>
+              </div>
+            </div>
+
             {showQR && (
               <div className="qr-invite-panel glass">
                 <div className="qr-header">
@@ -1690,7 +1706,7 @@ function App() {
                     <QRCodeSVG value={joinUrl} size={150} bgColor="#ffffff" fgColor="#000000" includeMargin={true} />
                   </div>
                   <p className="qr-instructions">
-                    Scan this QR code from your friend's phone or open this link on their browser:
+                    Scan this QR code from a phone or open on another device on your WiFi:
                   </p>
                   <div className="qr-url-box">
                     <code>{joinUrl}</code>
@@ -1699,15 +1715,15 @@ function App() {
               </div>
             )}
 
-            <div className="users-panel">
+            <div className="sidebar-scrollable-content">
               {/* CHANNELS SECTION */}
-              <div className="panel-header channel-header-row">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Hash size={16} />
-                  <h3>Channels</h3>
+              <div className="sidebar-section-header">
+                <div className="section-title-wrap">
+                  <Hash size={14} />
+                  <span>CHANNELS</span>
                 </div>
                 <button 
-                  className="channel-add-btn" 
+                  className="channel-add-icon-btn" 
                   onClick={() => setShowAddChannel(!showAddChannel)}
                   title="Create new channel"
                 >
@@ -1720,7 +1736,7 @@ function App() {
                 <form onSubmit={handleCreateChannel} className="create-channel-box">
                   <input 
                     type="text" 
-                    placeholder="channel-name (e.g. anime)" 
+                    placeholder="channel-name" 
                     value={newChannelName}
                     onChange={(e) => setNewChannelName(e.target.value)}
                     className="create-channel-input"
@@ -1745,21 +1761,15 @@ function App() {
                 </form>
               )}
 
-              <div className="users-list" style={{ marginBottom: '16px' }}>
+              <div className="channels-nav-list">
                 {channels.map((ch) => (
                   <div 
                     key={ch.id} 
-                    className={`user-item ${activeChatId === ch.id ? 'active' : ''}`}
+                    className={`nav-item channel-nav-item ${activeChatId === ch.id ? 'active' : ''}`}
                     onClick={() => handleSelectChat(ch.id)}
                   >
-                    <div className="user-avatar-frame-small" style={{ '--accent-glow': 'var(--accent-color)' }}>
-                      <span className="channel-tag-icon">{ch.icon || '#'}</span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-                      <span className="user-nickname" style={{ fontWeight: '600' }}>
-                        #{ch.name}
-                      </span>
-                    </div>
+                    <span className="channel-prefix">#</span>
+                    <span className="channel-nav-name">{ch.name}</span>
                     {unreadCounts[ch.id] > 0 && (
                       <span className="unread-badge">{unreadCounts[ch.id]}</span>
                     )}
@@ -1768,36 +1778,66 @@ function App() {
               </div>
 
               {/* DIRECT MESSAGES SECTION */}
-              <div className="panel-header">
-                <Users size={16} />
-                <h3>Direct Messages</h3>
+              <div className="sidebar-section-header" style={{ marginTop: '20px' }}>
+                <div className="section-title-wrap">
+                  <Users size={14} />
+                  <span>DIRECT MESSAGES</span>
+                </div>
+                <span className="online-count-tag">{otherUsers.length}</span>
               </div>
-              <div className="users-list">
+
+              <div className="dms-nav-list">
                 {otherUsers.length === 0 ? (
                   <div className="sidebar-empty-state">
-                    No other users online.<br/>Invite friends on your network to chat privately!
+                    No friends online yet.<br/>Share the QR code to chat!
                   </div>
                 ) : (
                   otherUsers.map((user) => (
                     <div 
                       key={user.id} 
-                      className={`user-item ${activeChatId === user.id ? 'active' : ''}`}
+                      className={`nav-item dm-nav-item ${activeChatId === user.id ? 'active' : ''}`}
                       onClick={() => handleSelectChat(user.id)}
                     >
-                      <div className="user-avatar-frame-small" style={{ '--accent-glow': user.color }}>
-                        {renderAvatar(user.avatar, user.nickname, 'user-avatar-img-small')}
+                      <div className="dm-avatar-node" style={{ '--accent-glow': user.color }}>
+                        {renderAvatar(user.avatar, user.nickname, 'dm-avatar-img')}
+                        <span className="dm-status-dot"></span>
                       </div>
-                      <span className="user-nickname" style={{ color: user.color }}>
+                      <span className="dm-user-name" style={{ color: user.color }}>
                         {user.nickname}
                       </span>
                       {unreadCounts[user.id] > 0 && (
                         <span className="unread-badge">{unreadCounts[user.id]}</span>
                       )}
-                      <span className="user-status-dot"></span>
                     </div>
                   ))
                 )}
               </div>
+            </div>
+
+            {/* CURRENT USER PROFILE FOOTER */}
+            <div className="current-user-card glass">
+              <div className="current-user-main">
+                <div className="user-avatar-pip-wrapper" style={{ '--accent-glow': selectedColor }}>
+                  {renderAvatar(selectedAvatar, nickname, 'current-user-avatar-img')}
+                  <span className="user-online-pip"></span>
+                </div>
+                <div className="current-user-meta">
+                  <div className="user-name-tag-row">
+                    <span className="current-user-nickname" style={{ color: selectedColor }}>
+                      {nickname}
+                    </span>
+                    <span className="user-badge-1p">1P</span>
+                  </div>
+                  <span className="user-device-status">Online on WiFi</span>
+                </div>
+              </div>
+              <button 
+                className="user-logout-btn" 
+                onClick={handleLogout} 
+                title="Leave Chatroom"
+              >
+                <LogOut size={16} />
+              </button>
             </div>
           </aside>
 
@@ -1845,16 +1885,25 @@ function App() {
                     <p>No messages match "{searchQuery}" in this conversation.</p>
                   </div>
                 ) : isChannel ? (
-                  <div className="chat-placeholder">
-                    <div className="placeholder-art">{currentChannel.icon || '💬'}</div>
-                    <h3>Welcome to #{currentChannel.name}!</h3>
-                    <p>{currentChannel.description || 'Start the conversation or invite friends on your WiFi network.'}</p>
+                  <div className="channel-hero-welcome">
+                    <div className="hero-icon-bubble">
+                      <span>{currentChannel.icon || '💬'}</span>
+                    </div>
+                    <h2>Welcome to #{currentChannel.name}!</h2>
+                    <p>{currentChannel.description || 'This is the start of the channel conversation on your local WiFi network.'}</p>
+                    <div className="hero-quick-tips">
+                      <span className="hero-tip-chip" onClick={() => setShowSketchpad(true)}>🎨 Shared Sketchpad</span>
+                      <span className="hero-tip-chip" onClick={() => setShowPollModal(true)}>📊 Live Polls</span>
+                      <span className="hero-tip-chip" onClick={() => setShowGameMenu(true)}>🎮 In-Chat Games</span>
+                    </div>
                   </div>
                 ) : (
-                  <div className="chat-placeholder">
-                    <div className="placeholder-art">🔒</div>
-                    <h3>Direct Message</h3>
-                    <p>This conversation is private between you and {onlineUsers.find(u => u.id === activeChatId)?.nickname || 'your friend'}.</p>
+                  <div className="channel-hero-welcome">
+                    <div className="hero-icon-bubble">
+                      <span>🔒</span>
+                    </div>
+                    <h2>Direct Message with {onlineUsers.find(u => u.id === activeChatId)?.nickname || 'Friend'}</h2>
+                    <p>This conversation is private and direct between you and your friend on your local WiFi network.</p>
                   </div>
                 )
               ) : (
@@ -2292,103 +2341,6 @@ function App() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Character Dock */}
-            <div className="typing-indicator-dock">
-              {/* Other Online Friends */}
-              {otherUsers.map((user, index) => {
-                const isUserTyping = typingUsers.some((u) => u.id === user.id && (isChannel ? (u.channelId === activeChatId && !u.recipientId) : u.recipientId === socket?.id));
-                const playerTag = `${index + 2}P`;
-                return (
-                  <div key={user.id} className="typing-avatar-node arcade-node">
-                    {/* Player Badge */}
-                    <div className="arcade-player-badge" style={{ '--badge-color': user.color }}>
-                      {playerTag}
-                    </div>
-
-                    {/* Arcade Corner Brackets */}
-                    <div className="arcade-brackets" style={{ '--accent-glow': user.color }}>
-                      <span></span>
-                      <span></span>
-                      <span></span>
-                      <span></span>
-                    </div>
-
-                    {/* Thought cloud bubble (only visible when typing) */}
-                    {isUserTyping && (
-                      <>
-                        <div className="thought-cloud" style={{ '--accent-glow': user.color }}>
-                          <div className="typing-dots">
-                            <span></span>
-                            <span></span>
-                            <span></span>
-                          </div>
-                        </div>
-                        {/* Connecting thought bubbles */}
-                        <div className="thought-bubble-small-1" style={{ '--accent-glow': user.color }}></div>
-                        <div className="thought-bubble-small-2" style={{ '--accent-glow': user.color }}></div>
-                      </>
-                    )}
-                    
-                    {/* Character Avatar */}
-                    <div className="typing-avatar-frame" style={{ '--accent-glow': user.color }}>
-                      {renderAvatar(user.avatar, user.nickname, 'typing-avatar-img')}
-                    </div>
-                    
-                    {/* Arcade Name Plate */}
-                    <div className="arcade-name-plate" style={{ '--accent-glow': user.color }}>
-                      <span className="typing-name">
-                        {user.nickname}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Self Character (Always Visible) */}
-              <div className="typing-avatar-node self-node arcade-node">
-                {/* Player Badge */}
-                <div className="arcade-player-badge self-badge" style={{ '--badge-color': selectedColor }}>
-                  1P
-                </div>
-
-                {/* Arcade Corner Brackets */}
-                <div className="arcade-brackets" style={{ '--accent-glow': selectedColor }}>
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-
-                {/* Thought cloud bubble (only visible when typing) */}
-                {isTyping && (
-                  <>
-                    <div className="thought-cloud" style={{ '--accent-glow': selectedColor }}>
-                      <div className="typing-dots">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                      </div>
-                    </div>
-                    {/* Connecting thought bubbles */}
-                    <div className="thought-bubble-small-1" style={{ '--accent-glow': selectedColor }}></div>
-                    <div className="thought-bubble-small-2" style={{ '--accent-glow': selectedColor }}></div>
-                  </>
-                )}
-                
-                {/* Character Avatar */}
-                <div className="typing-avatar-frame self-frame" style={{ '--accent-glow': selectedColor }}>
-                  {renderAvatar(selectedAvatar, nickname, 'typing-avatar-img')}
-                </div>
-                
-                {/* Arcade Name Plate */}
-                <div className="arcade-name-plate self-name-plate" style={{ '--accent-glow': selectedColor }}>
-                  <span className="typing-name">
-                    {nickname}
-                  </span>
-                </div>
-              </div>
-            </div>
-
             {/* Quick Emoji Bar */}
             {showEmojiPicker && (
               <div className="emoji-bar-popup glass">
@@ -2407,9 +2359,10 @@ function App() {
 
             {/* CHAT INPUT AREA */}
             <div className="chat-footer-controls">
+              {/* Dynamic Status Row: Sketching Indicator */}
               {isSomeoneSketching && (
-                <div className="sketching-status-bar" style={{ marginBottom: '8px' }}>
-                  <span className="sketching-status-dot"></span>
+                <div className="status-pill-banner sketching-banner">
+                  <span className="status-dot-pulse"></span>
                   <span>
                     {Object.entries(sketchpadActiveUsers)
                       .filter(([id, details]) => {
@@ -2420,6 +2373,24 @@ function App() {
                       .map(([id, details]) => details.nickname)
                       .join(', ')}{' '}
                     is drawing on the sketchpad...
+                  </span>
+                </div>
+              )}
+
+              {/* Dynamic Status Row: Typing Indicator */}
+              {typingUsers.some((u) => u.id !== socket?.id && (isChannel ? (u.channelId === activeChatId && !u.recipientId) : u.recipientId === socket?.id)) && (
+                <div className="status-pill-banner typing-banner">
+                  <div className="typing-dots-pill">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                  <span>
+                    {typingUsers
+                      .filter((u) => u.id !== socket?.id && (isChannel ? (u.channelId === activeChatId && !u.recipientId) : u.recipientId === socket?.id))
+                      .map((u) => u.nickname)
+                      .join(', ')}{' '}
+                    {typingUsers.filter((u) => u.id !== socket?.id && (isChannel ? (u.channelId === activeChatId && !u.recipientId) : u.recipientId === socket?.id)).length === 1 ? 'is typing...' : 'are typing...'}
                   </span>
                 </div>
               )}
